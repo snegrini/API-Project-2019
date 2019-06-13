@@ -63,7 +63,6 @@ void right_rotate(struct RB_node *x) {
     // TODO
 }
 
-
 void readLine(char **str)
 {
     int ch, i = 0;
@@ -76,21 +75,6 @@ void readLine(char **str)
         }
     }
     (*str)[i] = '\0';
-}
-
-void readStr(char *str)
-{
-    char ch;
-    int i = 0;
-        
-    while (sscanf(str, "%c", &ch)) {
-        str[i++] = ch;
-
-        if (i % DEFAULT_STRING_LENGTH == 0) {
-            str = realloc(str, sizeof(char) * (i + DEFAULT_STRING_LENGTH + 1));
-        }
-    }
-    str[i] = '\0';
 }
 
 int main(int argc, char *argv[])
