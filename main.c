@@ -42,45 +42,45 @@ void report(void)
 
 }
 
-int readLine(char *str) {
+void readLine(char **str)
+{
     int ch, i = 0;
     
-    while((ch = getchar()) != '\n') {
-        str[i++] = ch;
-        
+    while((ch = getchar()) != '\n' && ch != EOF) {
+        (*str)[i++] = ch;
+
         if (i % DEFAULT_LINE_LENGTH == 0) {
-            int b = DEFAULT_LINE_LENGTH * (i / DEFAULT_LINE_LENGTH);
-            str = realloc(str, sizeof(char) * b);
+            *str = realloc(*str, sizeof(char) * (i + DEFAULT_LINE_LENGTH + 1));
         }
     }
-    str[i] = '\0';
-
-    return 0;
+    (*str)[i] = '\0';
 }
 
 int main(int argc, char *argv[])
 {
-    char *command = malloc(sizeof(char) * DEFAULT_LINE_LENGTH);
-    //char *command, *id_ent, *id_orig, *id_dest, *id_rel;
+    char *line = malloc(sizeof(char) * (DEFAULT_LINE_LENGTH + 1));
+    char command[7];
+    char *id_ent = malloc(sizeof(char) * DEFAULT_LINE_LENGTH);
+    char *id_orig, *id_dest, *id_rel;
 
     do {
-        int a = readLine(command);
-        printf("%c", a);
+        readLine(&line);
+        sscanf(line, "%7s", command);
         
         if (strncmp(command, "addent", 7) == 0) {
-            //scanf("%ms", &id_ent);
+            sscanf(line, "%*s %s", id_ent);
+            printf("ADDENT %s", id_ent);
         } else if (strncmp(command, "delent", 7) == 0) {
-            //scanf("%ms", &id_ent);
+            sscanf(line, "%*s %s", id_ent);
+            printf("DELENT %s", id_ent);
         } else if (strncmp(command, "addrel", 7) == 0) {
-            //scanf("%ms", &id_orig);
-            //scanf("%ms", &id_dest);
-            //scanf("%ms", &id_rel);
+            sscanf(line, "%*s %s %s %s", id_orig, id_dest, id_rel);
+            printf("ADDREL %s %s %s", id_orig, id_dest, id_rel);
         } else if (strncmp(command, "delrel", 7) == 0) {
-            //scanf("%ms", &id_orig);
-            //scanf("%ms", &id_dest);
-            //scanf("%ms", &id_rel);
+            sscanf(line, "%*s %s %s %s", id_orig, id_dest, id_rel);
+            printf("DELREL %s %s %s", id_orig, id_dest, id_rel);
         } else if (strncmp(command, "report", 7) == 0) {
-            
+            printf("REPORT");
         }
         printf("%s\n", command);
     } while (strncmp(command, "end", 4) != 0);
