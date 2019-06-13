@@ -42,6 +42,39 @@ void report(void)
 
 }
 
+void rb_insert(struct RB_node *new) {
+    struct RB_node *x = rb_root;
+    struct RB_node *y = NULL;
+    
+    while (x != NULL) {
+        y = x;
+        
+        if (new->key < x->key) {
+            x = x->left;
+        } else {
+            x = x->right;
+        }
+    }
+    new->parent = y;
+    
+    if (y == NULL)
+        rb_root = new; // albero vuoto
+    else if (new.key < y.key)
+        y->left = z;
+    else
+        y->right = new;
+    
+    new->left  = NULL;
+    new->right = NULL;
+    new->color = RED;  
+    rb_insert_fixup(new);
+}
+
+void rb_insert_fixup(struct RB_node *new)
+{
+    
+}
+
 void left_rotate(struct RB_node *x) {
     struct RB_node *y = x->right;
     x->right = y->left;
@@ -60,7 +93,20 @@ void left_rotate(struct RB_node *x) {
 }
 
 void right_rotate(struct RB_node *x) {
-    // TODO
+    struct RB_node *y = x->left;
+    x->left = y->right;
+    
+    if (y->right != NULL)
+        y->left->parent = x;
+    y->parent = x->parent;
+    if (x->parent == NULL)
+        rb_root = y;
+    else if (x == x->parent->right)
+        x->parent->right = y;
+    else
+        x->parent->left = y;
+    y->right = x;
+    x->parent = y;
 }
 
 void readLine(char **str)
