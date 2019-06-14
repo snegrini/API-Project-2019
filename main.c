@@ -15,21 +15,18 @@ struct RB_node {
     struct RB_node *right;
 };
 
-struct RB_node *rb_root;
-
-
 void addent(char *id_ent);
 void delent(char *id_ent);
 void addrel(char *id_orig, char *id_dest, char *id_rel);
 void delrel(char *id_orig, char *id_dest, char *id_rel);
 void report(void);
 
-void rb_insert(struct RB_node *new);
-void rb_insert_fixup(struct RB_node *new);
-struct RB_node *rb_delete(struct RB_node *node);
-void rb_delete_fixup(struct RB_node *x);
-void left_rotate(struct RB_node *x);
-void right_rotate(struct RB_node *x);
+void rb_insert(struct RB_node *rb_root, struct RB_node *new);
+void rb_insert_fixup(struct RB_node *rb_root, struct RB_node *new);
+struct RB_node *rb_delete(struct RB_node *rb_root, struct RB_node *node);
+void rb_delete_fixup(struct RB_node *rb_root, struct RB_node *x);
+void left_rotate(struct RB_node *rb_root, struct RB_node *x);
+void right_rotate(struct RB_node *rb_root, struct RB_node *x);
 struct RB_node *tree_minimum(struct RB_node *node);
 struct RB_node *tree_successor(struct RB_node *node);
 
@@ -47,6 +44,10 @@ int main(int argc, char *argv[])
     char *id_rel  = NULL;
     
     size_t len;
+    
+    struct RB_node *rel_rb_root;
+    struct RB_node *ent_rb_root;
+    
     
     do {
         readLine(&line);
@@ -132,7 +133,7 @@ void report(void)
 
 }
 
-void rb_insert(struct RB_node *new)
+void rb_insert(struct RB_node *rb_root, struct RB_node *new)
 {
     struct RB_node *x = rb_root;
     struct RB_node *y = NULL;
@@ -158,10 +159,10 @@ void rb_insert(struct RB_node *new)
     new->left  = NULL;
     new->right = NULL;
     new->color = RED;  
-    rb_insert_fixup(new);
+    rb_insert_fixup(rb_root, new);
 }
 
-void rb_insert_fixup(struct RB_node *new)
+void rb_insert_fixup(struct RB_node *rb_root, struct RB_node *new)
 {
     struct RB_node *x, *y;
     
@@ -176,15 +177,15 @@ void rb_insert_fixup(struct RB_node *new)
                     x->color = BLACK;
                     y->color = BLACK;
                     x->parent->color = RED;
-                    rb_insert_fixup(x->parent);
+                    rb_insert_fixup(rb_root, x->parent);
                 } else if (new == x->right) {
                     new = x;
-                    left_rotate(new);
+                    left_rotate(rb_root, new);
                     x = new->parent;
                     
                     x->color = BLACK;
                     x->parent->color = RED;
-                    right_rotate(x->parent);
+                    right_rotate(rb_root, x->parent);
                 }
             } else {
                  y = x->parent->left;
@@ -192,22 +193,22 @@ void rb_insert_fixup(struct RB_node *new)
                     x->color = BLACK;
                     y->color = BLACK;
                     x->parent->color = RED;
-                    rb_insert_fixup(x->parent);
+                    rb_insert_fixup(rb_root, x->parent);
                 } else if (new == x->left) {
                     new = x;
-                    right_rotate(new);
+                    right_rotate(rb_root, new);
                     x = new->parent;
                     
                     x->color = BLACK;
                     x->parent->color = RED;
-                    left_rotate(x->parent);
+                    left_rotate(rb_root, x->parent);
                 }
             }
         }
     }
 }
 
-struct RB_node *rb_delete(struct RB_node *node)
+struct RB_node *rb_delete(struct RB_node *rb_root, struct RB_node *node)
 {
     struct RB_node *x, *y;
     
@@ -231,11 +232,11 @@ struct RB_node *rb_delete(struct RB_node *node)
     if (y != node)
         node->key = y->key;
     if (y->color == BLACK)
-        rb_delete_fixup(x);
+        rb_delete_fixup(rb_root, x);
     return y;
 }
 
-void rb_delete_fixup(struct RB_node *x)
+void rb_delete_fixup(struct RB_node *rb_root, struct RB_node *x)
 {
     struct RB_node *w;
     
@@ -246,47 +247,47 @@ void rb_delete_fixup(struct RB_node *x)
         if (w->color == RED) {
             w->color = BLACK;
             x->parent->color = RED;
-            left_rotate(x->parent);
+            left_rotate(rb_root, x->parent);
             w = x->parent->right;
         } 
         if (w->left->color == BLACK && w->right->color == BLACK) {
             w->color = RED;
-            rb_delete_fixup(x->parent);
+            rb_delete_fixup(rb_root, x->parent);
         } else if (w->right->color == BLACK) {
             w->left->color = BLACK;
             w->color = RED;
-            right_rotate(w);
+            right_rotate(rb_root, w);
             w = x->parent->right;
             
             w->color = x->parent->color;
             x->parent->color = BLACK;
-            left_rotate(x->parent);
+            left_rotate(rb_root, x->parent);
         }
     } else {
          w = x->parent->left;
         if (w->color == RED) {
             w->color = BLACK;
             x->parent->color = RED;
-            right_rotate(x->parent);
+            right_rotate(rb_root, x->parent);
             w = x->parent->left;
         } 
         if (w->left->color == BLACK && w->right->color == BLACK) {
             w->color = RED;
-            rb_delete_fixup(x->parent);
+            rb_delete_fixup(rb_root, x->parent);
         } else if (w->left->color == BLACK) {
             w->right->color = BLACK;
             w->color = RED;
-            left_rotate(w);
+            left_rotate(rb_root, w);
             w = x->parent->left;
             
             w->color = x->parent->color;
             x->parent->color = BLACK;
-            right_rotate(x->parent);
+            right_rotate(rb_root, x->parent);
         }
     }
 }
 
-void left_rotate(struct RB_node *x)
+void left_rotate(struct RB_node *rb_root, struct RB_node *x)
 {
     struct RB_node *y = x->right;
     x->right = y->left;
@@ -304,7 +305,7 @@ void left_rotate(struct RB_node *x)
     x->parent = y;
 }
 
-void right_rotate(struct RB_node *x)
+void right_rotate(struct RB_node *rb_root, struct RB_node *x)
 {
     struct RB_node *y = x->left;
     x->left = y->right;
