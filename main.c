@@ -9,10 +9,13 @@
 #define BLACK   1
 
 struct adj_list_node {
-    char *vertex;
+    char *id_ent;
     struct adj_list_node *next;
 };
 
+/*
+ * L'attributo name delle liste di adiacenza è il nome dell'entità id_orig.
+ */
 struct adj_list {
     char *name;
     unsigned int size;
@@ -21,7 +24,8 @@ struct adj_list {
 };
 
 struct graph {
-    int vertices_num;
+    unsigned int max_size;
+    unsigned int curr_size;
     struct adj_list *adj_list_ent;
 };
 
@@ -57,6 +61,8 @@ void rb_free(struct rb_node *rb_root);
 /*
  * Graph functions
  */
+struct adj_list *adj_list_search(struct adj_list *head, char *name);
+struct adj_list_node *adj_list_node_search(struct adj_list_node *head, char *id_ent);
 
 /*
  * Input functions
@@ -167,30 +173,69 @@ void delent(struct rb_node *rb_root, char *id_ent)
 void addrel(struct rb_node *rb_root, char *id_orig, char *id_dest, char *id_rel)
 {
     struct rb_node *node_rel;
-    struct adj_list_node *new_node_ent;
+    struct adj_list_node *node_ent;
     node_rel = rb_search(rb_root, id_rel);
     
     if (node_rel == NULL) {
         node_rel = malloc(sizeof(struct rb_node));
         node_rel->key = id_rel;
         
-        // La relazione prima non esisteva. Sicuramente devo creare il grafo e le liste di adiacenza
+        /* La relazione prima non esisteva. Sicuramente devo creare il grafo e le liste di adiacenza */
         node_rel->ent_graph = malloc(sizeof(struct graph));
-        node_rel->ent_graph->vertices_num = DEFAULT_GRAPH_SIZE;
-        node_rel->ent_graph->adj_list_ent = malloc(sizeof(struct adj_list) * node_rel->ent_graph->vertices_num);
+        node_rel->ent_graph->max_size = DEFAULT_GRAPH_SIZE;
+        node_rel->ent_graph->adj_list_ent = malloc(sizeof(struct adj_list) * node_rel->ent_graph->max_size);
         
         node_rel->ent_graph->adj_list_ent->name = id_orig;
         node_rel->ent_graph->adj_list_ent->next_list = NULL;
+        node_rel->ent_graph->curr_size = 1;
         
-        new_node_ent = malloc(sizeof(struct adj_list_node));
-        new_node_ent->vertex = id_dest;
-        new_node_ent->next = NULL;
+        node_ent = malloc(sizeof(struct adj_list_node));
+        node_ent->id_ent = id_dest;
+        node_ent->next = NULL;
         
-        node_rel->ent_graph->adj_list_ent->node = new_node_ent;
+        node_rel->ent_graph->adj_list_ent->node = node_ent;
         node_rel->ent_graph->adj_list_ent->size = node_rel->ent_graph->adj_list_ent->size + 1; 
         
         rb_insert(rb_root, node_rel);
     } else {
+        /* 
+         * La relazione esiste, quindi esiste anche il grafo associato ad essa.
+         * Cerco se è già presente la lista di adiacenza dell'entità id_orig,
+         * altrimenti la creo.
+         *
+         * TODO: forse è meglio creare tutte le liste di adiacenza con nome entità e puntatore
+         * al primo nodo NULL (sarebbe un vero grafo. In tal caso, ricordarsi di aggiungere/togliere
+         * le occorrenze in tutti i grafi delle relazioni ad ogni aggiunta/rimozione di una
+         * nuova entità (operazioni effettuate tramite addent()/delent().
+         */
+        struct adj_list *adj_list_ent = adj_list_search(node_rel->ent_graph->adj_list_ent, id_orig);
+        if (adj_list_ent == NULL) {
+            /* Inserisco in testa la nuova lista di adiacenza per l'entità id_orig. */
+            adj_list_ent = malloc(sizeof(struct adj_list));
+            adj_list_ent->name = id_orig;
+            adj_list_ent->next_list = node_rel->ent_graph->adj_list_ent; // TODO: sostituibile con = NULL?
+            node_rel->ent_graph->adj_list_ent = adj_list_ent;
+            
+            /* 
+             * Non essendoci la lista, non sarà presente in lista neanche l'entità id_dest, che
+             * va quindi creata.
+             */
+             node_ent = malloc(sizeof(struct adj_list_node));
+             node_ent->id_ent = id_dest;
+             node_ent->next = adj_list_ent->node; // TODO: sostituibile con = NULL?
+             adj_list_ent->node = node_ent;
+        } else {
+            /*
+             * Cerco, se esiste, il nodo dell'entità id_dest.
+             * Se non esiste lo aggiungo in testa alla lista di adiacenza.
+             * Se esiste, non faccio nulla.
+             */
+            node_ent = adj_list_node_search(adj_list_ent->node, id_dest);
+            if (node_ent == NULL) {
+                node_ent = malloc(sizeof(struct adj_list_node));
+            }
+        }
+        
         /* 
          * TODO: implementare un metodo per cercare una lista di adiacenza esistente e aggiungere quindi
          * un nodo.
@@ -203,7 +248,7 @@ void addrel(struct rb_node *rb_root, char *id_orig, char *id_dest, char *id_rel)
          * 
          * TODO: i nodi delle liste di adiacenza vengono allocati singolarmente? Cioè per ogni nuovo nodo 
          * viene effettuata una malloc e vengono collegati i puntatori alla lista.
-         * Controllareche l'inserimento del nodo all'interno della lista di adiacenza venga effettuato in testa,
+         * Controllare che l'inserimento del nodo all'interno della lista di adiacenza venga effettuato in testa,
          * in modo da avere complessità temporale O(1) (costante).
          * 
          * TODO: vedere se è possibile snellire il codice della funzione addrel(), magari mettendo in comune
@@ -458,6 +503,24 @@ void rb_free(struct rb_node *rb_root)
     rb_free(rb_root->right);
 
     free(rb_root);
+}
+
+struct adj_list *adj_list_search(struct adj_list *head, char *name)
+{
+    struct adj_list *curr = head;
+    while (curr != NULL && strcmp(curr->name, name) != 0) {
+        curr = curr->next_list;
+    }
+    return curr;
+}
+
+struct adj_list_node *adj_list_node_search(struct adj_list_node *head, char *id_ent)
+{
+    struct adj_list_node *curr = head;
+    while (curr != NULL && strcmp(curr->id_ent, id_ent) != 0) {
+        curr = curr->next;
+    }
+    return curr;
 }
 
 void readLine(char **str)
