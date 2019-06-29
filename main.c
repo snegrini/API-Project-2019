@@ -38,31 +38,32 @@ struct rb_node {
     struct rb_node *right;
 };
 
-void addent(struct rb_node *rb_root, char *id_ent);
-void delent(struct rb_node *rb_root, char *id_ent);
-void addrel(struct rb_node *rb_root, char *id_orig, char *id_dest, char *id_rel);
-void delrel(struct rb_node *rb_root, char *id_orig, char *id_dest, char *id_rel);
+void addent(struct rb_node **rb_root, char *id_ent);
+void delent(struct rb_node **rb_root, char *id_ent);
+void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel);
+void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel);
 void report(void);
 
 /*
  * RB Tree functions
  */
-void rb_insert(struct rb_node *rb_root, struct rb_node *new);
-void rb_insert_fixup(struct rb_node *rb_root, struct rb_node *new);
-struct rb_node *rb_delete(struct rb_node *rb_root, struct rb_node *node);
-void rb_delete_fixup(struct rb_node *rb_root, struct rb_node *x);
-struct rb_node *rb_search(struct rb_node *rb_root, char *key);
-void rotate_left(struct rb_node *rb_root, struct rb_node *x);
-void rotate_right(struct rb_node *rb_root, struct rb_node *x);
-struct rb_node *tree_minimum(struct rb_node *node);
-struct rb_node *tree_successor(struct rb_node *node);
-void rb_free(struct rb_node *rb_root);
+void rb_insert(struct rb_node **rb_root, struct rb_node **new);
+void rb_insert_fixup(struct rb_node **rb_root, struct rb_node **new);
+struct rb_node *rb_delete(struct rb_node **rb_root, struct rb_node **node);
+void rb_delete_fixup(struct rb_node **rb_root, struct rb_node **x);
+struct rb_node **rb_search(struct rb_node **rb_root, char *key);
+void rotate_left(struct rb_node **rb_root, struct rb_node **x);
+void rotate_right(struct rb_node **rb_root, struct rb_node **x);
+struct rb_node *tree_minimum(struct rb_node **node);
+struct rb_node *tree_successor(struct rb_node **node);
+void rb_free(struct rb_node **rb_root);
 
 /*
  * Graph functions
  */
-struct adj_list *adj_list_search(struct adj_list *head, char *name);
-struct adj_list_node *adj_list_node_search(struct adj_list_node *head, char *id_ent);
+struct adj_list *adj_list_search(struct adj_list **head, char *name);
+void adj_list_node_insert(struct adj_list_node **head, char *id_ent);
+struct adj_list_node *adj_list_node_search(struct adj_list_node **head, char *id_ent);
 
 /*
  * Input functions
@@ -87,6 +88,9 @@ int main(int argc, char *argv[])
     ent_rb_root = malloc(sizeof(struct rb_node));
     rel_rb_root = malloc(sizeof(struct rb_node));
     
+    ent_rb_root->key = malloc(sizeof(char));
+    strcpy(ent_rb_root->key, "");
+    
     do {
         readLine(&line);
         sscanf(line, "%7s", command);
@@ -99,13 +103,14 @@ int main(int argc, char *argv[])
             }
             sscanf(line, "%*s %s", id_ent);
             //printf("ADDENT %s\n", id_ent);
-            addent(ent_rb_root, id_ent);
+            addent(&ent_rb_root, id_ent);
         } else if (strncmp(command, "delent", 7) == 0) {
             if (!id_ent) {
                 id_ent = malloc(sizeof(char) * len);
             }
             sscanf(line, "%*s %s", id_ent);
             printf("DELENT %s\n", id_ent);
+            delent(&ent_rb_root, id_ent);
         } else if (strncmp(command, "addrel", 7) == 0) {
             if (!id_orig) {
                 id_orig = malloc(sizeof(char) * len);
@@ -118,6 +123,7 @@ int main(int argc, char *argv[])
             }
             sscanf(line, "%*s %s %s %s", id_orig, id_dest, id_rel);
             printf("ADDREL %s %s %s\n", id_orig, id_dest, id_rel);
+            addrel(&rel_rb_root, id_orig, id_dest, id_rel);
         } else if (strncmp(command, "delrel", 7) == 0) {
             if (!id_orig) {
                 id_orig = malloc(sizeof(char) * len);
@@ -130,8 +136,10 @@ int main(int argc, char *argv[])
             }
             sscanf(line, "%*s %s %s %s", id_orig, id_dest, id_rel);
             printf("DELREL %s %s %s\n", id_orig, id_dest, id_rel);
+            delrel(&rel_rb_root, id_orig, id_dest, id_rel);
         } else if (strncmp(command, "report", 7) == 0) {
             printf("REPORT\n");
+            report();
         }
         printf("\n");
     } while (strncmp(command, "end", 4) != 0);
@@ -142,25 +150,25 @@ int main(int argc, char *argv[])
     free(id_dest);
     free(id_rel);
     
-    free(ent_rb_root);
-    free(rel_rb_root);
+    rb_free(&ent_rb_root);
+    rb_free(&rel_rb_root);
     
     return 0;
 }
 
 
-void addent(struct rb_node *rb_root, char *id_ent)
+void addent(struct rb_node **rb_root, char *id_ent)
 {
     struct rb_node *new_node_ent;
     
     new_node_ent = malloc(sizeof(struct rb_node));
     new_node_ent->key = id_ent;
-    rb_insert(rb_root, new_node_ent);
+    rb_insert(rb_root, &new_node_ent);
 }
 
-void delent(struct rb_node *rb_root, char *id_ent)
+void delent(struct rb_node **rb_root, char *id_ent)
 {
-    struct rb_node *node_ent;
+    struct rb_node **node_ent;
     
     node_ent = rb_search(rb_root, id_ent);
     rb_delete(rb_root, node_ent);
@@ -170,11 +178,11 @@ void delent(struct rb_node *rb_root, char *id_ent)
 /*
  * Add a relation. If the relation is not existent, a new one is created.
  */
-void addrel(struct rb_node *rb_root, char *id_orig, char *id_dest, char *id_rel)
+void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel)
 {
     struct rb_node *node_rel;
     struct adj_list_node *node_ent;
-    node_rel = rb_search(rb_root, id_rel);
+    node_rel = *(rb_search(rb_root, id_rel));
     
     if (node_rel == NULL) {
         node_rel = malloc(sizeof(struct rb_node));
@@ -196,7 +204,7 @@ void addrel(struct rb_node *rb_root, char *id_orig, char *id_dest, char *id_rel)
         node_rel->ent_graph->adj_list_ent->node = node_ent;
         node_rel->ent_graph->adj_list_ent->size = node_rel->ent_graph->adj_list_ent->size + 1; 
         
-        rb_insert(rb_root, node_rel);
+        rb_insert(rb_root, &node_rel);
     } else {
         /* 
          * La relazione esiste, quindi esiste anche il grafo associato ad essa.
@@ -208,31 +216,36 @@ void addrel(struct rb_node *rb_root, char *id_orig, char *id_dest, char *id_rel)
          * le occorrenze in tutti i grafi delle relazioni ad ogni aggiunta/rimozione di una
          * nuova entità (operazioni effettuate tramite addent()/delent().
          */
-        struct adj_list *adj_list_ent = adj_list_search(node_rel->ent_graph->adj_list_ent, id_orig);
+        struct adj_list *adj_list_ent;
+        adj_list_ent = adj_list_search(&node_rel->ent_graph->adj_list_ent, id_orig);
         if (adj_list_ent == NULL) {
             /* Inserisco in testa la nuova lista di adiacenza per l'entità id_orig. */
-            adj_list_ent = malloc(sizeof(struct adj_list));
+            //adj_list_ent = malloc(sizeof(struct adj_list));
             adj_list_ent->name = id_orig;
             adj_list_ent->next_list = node_rel->ent_graph->adj_list_ent; // TODO: sostituibile con = NULL?
+
+            if ((node_rel->ent_graph->curr_size + 1) == node_rel->ent_graph->max_size) {
+                node_rel->ent_graph->max_size = node_rel->ent_graph->max_size + DEFAULT_GRAPH_SIZE;
+                node_rel->ent_graph->adj_list_ent = realloc(node_rel->ent_graph->adj_list_ent,
+                                                            sizeof(struct adj_list) * node_rel->ent_graph->max_size);
+            }
             node_rel->ent_graph->adj_list_ent = adj_list_ent;
+            node_rel->ent_graph->curr_size = node_rel->ent_graph->curr_size + 1;
             
             /* 
              * Non essendoci la lista, non sarà presente in lista neanche l'entità id_dest, che
              * va quindi creata.
              */
-             node_ent = malloc(sizeof(struct adj_list_node));
-             node_ent->id_ent = id_dest;
-             node_ent->next = adj_list_ent->node; // TODO: sostituibile con = NULL?
-             adj_list_ent->node = node_ent;
+             adj_list_node_insert(&adj_list_ent->node, id_dest);
         } else {
             /*
              * Cerco, se esiste, il nodo dell'entità id_dest.
              * Se non esiste lo aggiungo in testa alla lista di adiacenza.
              * Se esiste, non faccio nulla.
              */
-            node_ent = adj_list_node_search(adj_list_ent->node, id_dest);
+            node_ent = adj_list_node_search(&adj_list_ent->node, id_dest);
             if (node_ent == NULL) {
-                node_ent = malloc(sizeof(struct adj_list_node));
+                adj_list_node_insert(&adj_list_ent->node, id_dest);
             }
         }
         
@@ -258,9 +271,9 @@ void addrel(struct rb_node *rb_root, char *id_orig, char *id_dest, char *id_rel)
     
 }
 
-void delrel(struct rb_node *rb_root, char *id_orig, char *id_dest, char *id_rel)
+void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel)
 {
-
+    
 }
 
 void report(void)
@@ -268,43 +281,47 @@ void report(void)
 
 }
 
-void rb_insert(struct rb_node *rb_root, struct rb_node *new)
+void rb_insert(struct rb_node **rb_root, struct rb_node **new)
 {
-    struct rb_node *x = rb_root;
+    struct rb_node *x = *rb_root;
     struct rb_node *y = NULL;
     
     while (x != NULL) {
         y = x;
         
-        if (strcmp(new->key, x->key) < 0) {
+        if (strcmp((*new)->key, x->key) < 0)
             x = x->left;
-        } else {
+        else
             x = x->right;
-        }
+        /*} else if (strcmp((*new)->key, x->key) > 0) {
+            x = x->right;
+        } else {
+            return; // Avoid duplicates
+        }*/
     }
-    new->parent = y;
+    (*new)->parent = y;
     
     if (y == NULL)
-        rb_root = new; // empty tree
-    else if (strcmp(new->key, y->key) < 0)
-        y->left = new;
+        *rb_root = *new; // Empty tree
+    else if (strcmp((*new)->key, y->key) < 0)
+        y->left = *new;
     else
-        y->right = new;
+        y->right = *new;
     
-    new->left  = NULL;
-    new->right = NULL;
-    new->color = RED;  
+    (*new)->left  = NULL;
+    (*new)->right = NULL;
+    (*new)->color = RED;  
     rb_insert_fixup(rb_root, new);
 }
 
-void rb_insert_fixup(struct rb_node *rb_root, struct rb_node *new)
+void rb_insert_fixup(struct rb_node **rb_root, struct rb_node **new)
 {
     struct rb_node *x, *y;
     
-    if (new == rb_root) {
-        rb_root->color = BLACK;
+    if (*new == *rb_root) {
+        (*rb_root)->color = BLACK;
     } else {
-        x = new->parent;
+        x = (*new)->parent;
         if (x->color == RED) {
             if (x == x->parent->left) {
                 y = x->parent->right;
@@ -312,16 +329,16 @@ void rb_insert_fixup(struct rb_node *rb_root, struct rb_node *new)
                     x->color = BLACK;
                     y->color = BLACK;
                     x->parent->color = RED;
-                    rb_insert_fixup(rb_root, x->parent);
+                    rb_insert_fixup(rb_root, &x->parent);
                 } else {
-                    if (new == x->right) {
-                        new = x;
+                    if (*new == x->right) {
+                        *new = x;
                         rotate_left(rb_root, new);
-                        x = new->parent;
+                        x = (*new)->parent;
                     }
                     x->color = BLACK;
                     x->parent->color = RED;
-                    rotate_right(rb_root, x->parent);
+                    rotate_right(rb_root, &x->parent);
                 }
             } else {
                  y = x->parent->left;
@@ -329,28 +346,28 @@ void rb_insert_fixup(struct rb_node *rb_root, struct rb_node *new)
                     x->color = BLACK;
                     y->color = BLACK;
                     x->parent->color = RED;
-                    rb_insert_fixup(rb_root, x->parent);
+                    rb_insert_fixup(rb_root, &x->parent);
                 } else {
-                    if (new == x->left) {
-                        new = x;
+                    if (*new == x->left) {
+                        *new = x;
                         rotate_right(rb_root, new);
-                        x = new->parent;
+                        x = (*new)->parent;
                     }
                     x->color = BLACK;
                     x->parent->color = RED;
-                    rotate_left(rb_root, x->parent);
+                    rotate_left(rb_root, &x->parent);
                 }
             }
         }
     }
 }
 
-struct rb_node *rb_delete(struct rb_node *rb_root, struct rb_node *node)
+struct rb_node *rb_delete(struct rb_node **rb_root, struct rb_node **node)
 {
     struct rb_node *x, *y;
     
-    if (node->left == NULL || node->right == NULL)
-        y = node;
+    if ((*node)->left == NULL || (*node)->right == NULL)
+        y = *node;
     else
         y = tree_successor(node);
     if (y->left != NULL)
@@ -360,163 +377,171 @@ struct rb_node *rb_delete(struct rb_node *rb_root, struct rb_node *node)
     
     x->parent = y->parent;
     if (y->parent == NULL)
-        rb_root = x;
+        *rb_root = x;
     else if (y == y->parent->left)
         y->parent->left = x;
     else
         y->parent->right = x;
     
-    if (y != node)
-        node->key = y->key;
+    if (y != *node)
+        (*node)->key = y->key;
     if (y->color == BLACK)
-        rb_delete_fixup(rb_root, x);
+        rb_delete_fixup(rb_root, &x);
     return y;
 }
 
-void rb_delete_fixup(struct rb_node *rb_root, struct rb_node *x)
+void rb_delete_fixup(struct rb_node **rb_root, struct rb_node **x)
 {
     struct rb_node *w;
     
-    if (x->color == RED || x->parent == NULL) {
-        x->color = BLACK;
-    } else if (x == x->parent->left) {
-        w = x->parent->right;
+    if ((*x)->color == RED || (*x)->parent == NULL) {
+        (*x)->color = BLACK;
+    } else if (*x == (*x)->parent->left) {
+        w = (*x)->parent->right;
         if (w->color == RED) {
             w->color = BLACK;
-            x->parent->color = RED;
-            rotate_left(rb_root, x->parent);
-            w = x->parent->right;
+            (*x)->parent->color = RED;
+            rotate_left(rb_root, &(*x)->parent);
+            w = (*x)->parent->right;
         } 
         if (w->left->color == BLACK && w->right->color == BLACK) {
             w->color = RED;
-            rb_delete_fixup(rb_root, x->parent);
+            rb_delete_fixup(rb_root, &(*x)->parent);
         } else {
             if (w->right->color == BLACK) {
                 w->left->color = BLACK;
                 w->color = RED;
-                rotate_right(rb_root, w);
-                w = x->parent->right;
+                rotate_right(rb_root, &w);
+                w = (*x)->parent->right;
             }
-            w->color = x->parent->color;
-            x->parent->color = BLACK;
-            rotate_left(rb_root, x->parent);
+            w->color = (*x)->parent->color;
+            (*x)->parent->color = BLACK;
+            rotate_left(rb_root, &(*x)->parent);
         }
     } else {
-         w = x->parent->left;
+         w = (*x)->parent->left;
         if (w->color == RED) {
             w->color = BLACK;
-            x->parent->color = RED;
-            rotate_right(rb_root, x->parent);
-            w = x->parent->left;
+            (*x)->parent->color = RED;
+            rotate_right(rb_root, &(*x)->parent);
+            w = (*x)->parent->left;
         } 
         if (w->left->color == BLACK && w->right->color == BLACK) {
             w->color = RED;
-            rb_delete_fixup(rb_root, x->parent);
+            rb_delete_fixup(rb_root, &(*x)->parent);
         } else {
             if (w->left->color == BLACK) {
                 w->right->color = BLACK;
                 w->color = RED;
-                rotate_left(rb_root, w);
-                w = x->parent->left;
+                rotate_left(rb_root, &w);
+                w = (*x)->parent->left;
             }
-            w->color = x->parent->color;
-            x->parent->color = BLACK;
-            rotate_right(rb_root, x->parent);
+            w->color = (*x)->parent->color;
+            (*x)->parent->color = BLACK;
+            rotate_right(rb_root, &(*x)->parent);
         }
         
     }
 }
 
-struct rb_node *rb_search(struct rb_node *rb_root, char *key)
+struct rb_node **rb_search(struct rb_node **rb_root, char *key)
 {
-    if (rb_root == NULL || strcmp(key, rb_root->key) == 0)
+    if (*rb_root == NULL || strcmp(key, (*rb_root)->key) == 0)
         return rb_root;
-    if (strcmp(key, rb_root->key) < 0)
-        return rb_search(rb_root->left, key);
+    if (strcmp(key, (*rb_root)->key) < 0)
+        return rb_search(&(*rb_root)->left, key);
     else
-        return rb_search(rb_root->right, key);
+        return rb_search(&(*rb_root)->right, key);
 }
 
-void rotate_left(struct rb_node *rb_root, struct rb_node *x)
+void rotate_left(struct rb_node **rb_root, struct rb_node **x)
 {
-    struct rb_node *y = x->right;
-    x->right = y->left;
+    struct rb_node *y = (*x)->right;
+    (*x)->right = y->left;
     
     if (y->left != NULL)
-        y->left->parent = x;
-    y->parent = x->parent;
-    if (x->parent == NULL)
-        rb_root = y;
-    else if (x == x->parent->left)
-        x->parent->left = y;
+        y->left->parent = *x;
+    y->parent = (*x)->parent;
+    if ((*x)->parent == NULL)
+        *rb_root = y;
+    else if (*x == (*x)->parent->left)
+        (*x)->parent->left = y;
     else
-        x->parent->right = y;
-    y->left = x;
-    x->parent = y;
+        (*x)->parent->right = y;
+    y->left = *x;
+    (*x)->parent = y;
 }
 
-void rotate_right(struct rb_node *rb_root, struct rb_node *x)
+void rotate_right(struct rb_node **rb_root, struct rb_node **x)
 {
-    struct rb_node *y = x->left;
-    x->left = y->right;
+    struct rb_node *y = (*x)->left;
+    (*x)->left = y->right;
     
     if (y->right != NULL)
-        y->left->parent = x;
-    y->parent = x->parent;
-    if (x->parent == NULL)
-        rb_root = y;
-    else if (x == x->parent->right)
-        x->parent->right = y;
+        y->left->parent = *x;
+    y->parent = (*x)->parent;
+    if ((*x)->parent == NULL)
+        *rb_root = y;
+    else if (*x == (*x)->parent->right)
+        (*x)->parent->right = y;
     else
-        x->parent->left = y;
-    y->right = x;
-    x->parent = y;
+        (*x)->parent->left = y;
+    y->right = *x;
+    (*x)->parent = y;
 }
 
-struct rb_node *tree_minimum(struct rb_node *node) 
+struct rb_node *tree_minimum(struct rb_node **node) 
 {
-    while (node->left != NULL)
-        node = node->left;
-    return node;
+    while ((*node)->left != NULL)
+        *node = (*node)->left;
+    return *node;
 }
 
-struct rb_node *tree_successor(struct rb_node *node)
+struct rb_node *tree_successor(struct rb_node **node)
 {
     struct rb_node *y;
     
-    if (node->right != NULL)
-        return tree_minimum(node->right);
-    y = node->parent;
-    while (y != NULL && node == y->right) {
-        node = y;
+    if ((*node)->right != NULL)
+        return tree_minimum(&(*node)->right);
+    y = (*node)->parent;
+    while (y != NULL && *node == y->right) {
+        *node = y;
         y = y->parent;
     }
     return y;
 }
 
-void rb_free(struct rb_node *rb_root)
+void rb_free(struct rb_node **rb_root)
 {
-    if (rb_root == NULL)
+    if (*rb_root == NULL)
         return;
 
-    rb_free(rb_root->left);
-    rb_free(rb_root->right);
+    rb_free(&(*rb_root)->left);
+    rb_free(&(*rb_root)->right);
 
-    free(rb_root);
+    free(*rb_root);
 }
 
-struct adj_list *adj_list_search(struct adj_list *head, char *name)
+struct adj_list *adj_list_search(struct adj_list **head, char *name)
 {
-    struct adj_list *curr = head;
+    struct adj_list *curr = *head;
     while (curr != NULL && strcmp(curr->name, name) != 0) {
         curr = curr->next_list;
     }
     return curr;
 }
 
-struct adj_list_node *adj_list_node_search(struct adj_list_node *head, char *id_ent)
+void adj_list_node_insert(struct adj_list_node **head, char *id_ent)
 {
-    struct adj_list_node *curr = head;
+    struct adj_list_node *new_node = malloc(sizeof(struct adj_list_node));
+    new_node->id_ent = id_ent;
+    new_node->next = *head; // TODO: sostituibile con = NULL?
+    *head = new_node;
+}
+
+struct adj_list_node *adj_list_node_search(struct adj_list_node **head, char *id_ent)
+{
+    struct adj_list_node *curr = *head;
     while (curr != NULL && strcmp(curr->id_ent, id_ent) != 0) {
         curr = curr->next;
     }
