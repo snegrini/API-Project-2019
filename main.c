@@ -38,6 +38,9 @@ struct rb_node {
     struct rb_node *right;
 };
 
+struct rb_node node;
+struct rb_node *t_nil = &node;
+
 void addent(struct rb_node **rb_root, char *id_ent);
 void delent(struct rb_node **rb_root, char *id_ent);
 void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel);
@@ -47,15 +50,15 @@ void report(void);
 /*
  * RB Tree functions
  */
-void rb_insert(struct rb_node **rb_root, struct rb_node **new);
-void rb_insert_fixup(struct rb_node **rb_root, struct rb_node **new);
-struct rb_node *rb_delete(struct rb_node **rb_root, struct rb_node **node);
-void rb_delete_fixup(struct rb_node **rb_root, struct rb_node **x);
+void rb_insert(struct rb_node **rb_root, struct rb_node *new);
+void rb_insert_fixup(struct rb_node **rb_root, struct rb_node *new);
+struct rb_node *rb_delete(struct rb_node **rb_root, struct rb_node *node);
+void rb_delete_fixup(struct rb_node **rb_root, struct rb_node *x);
 struct rb_node **rb_search(struct rb_node **rb_root, char *key);
-void rotate_left(struct rb_node **rb_root, struct rb_node **x);
-void rotate_right(struct rb_node **rb_root, struct rb_node **x);
-struct rb_node *tree_minimum(struct rb_node **node);
-struct rb_node *tree_successor(struct rb_node **node);
+void rotate_left(struct rb_node **rb_root, struct rb_node *x);
+void rotate_right(struct rb_node **rb_root, struct rb_node *x);
+struct rb_node *tree_minimum(struct rb_node *node);
+struct rb_node *tree_successor(struct rb_node *node);
 void rb_free(struct rb_node **rb_root);
 
 /*
@@ -85,11 +88,8 @@ int main(int argc, char *argv[])
     struct rb_node *ent_rb_root; // Store all entities before relations are created
     struct rb_node *rel_rb_root;
         
-    ent_rb_root = malloc(sizeof(struct rb_node));
-    rel_rb_root = malloc(sizeof(struct rb_node));
-    
-    ent_rb_root->key = malloc(sizeof(char));
-    strcpy(ent_rb_root->key, "");
+    ent_rb_root = t_nil;
+    rel_rb_root = t_nil;
     
     do {
         readLine(&line);
@@ -163,7 +163,7 @@ void addent(struct rb_node **rb_root, char *id_ent)
     
     new_node_ent = malloc(sizeof(struct rb_node));
     new_node_ent->key = id_ent;
-    rb_insert(rb_root, &new_node_ent);
+    rb_insert(rb_root, new_node_ent);
 }
 
 void delent(struct rb_node **rb_root, char *id_ent)
@@ -171,7 +171,7 @@ void delent(struct rb_node **rb_root, char *id_ent)
     struct rb_node **node_ent;
     
     node_ent = rb_search(rb_root, id_ent);
-    rb_delete(rb_root, node_ent);
+    rb_delete(rb_root, *node_ent);
     free(node_ent);
 }
 
@@ -204,7 +204,7 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
         node_rel->ent_graph->adj_list_ent->node = node_ent;
         node_rel->ent_graph->adj_list_ent->size = node_rel->ent_graph->adj_list_ent->size + 1; 
         
-        rb_insert(rb_root, &node_rel);
+        rb_insert(rb_root, node_rel);
     } else {
         /* 
          * La relazione esiste, quindi esiste anche il grafo associato ad essa.
@@ -281,47 +281,47 @@ void report(void)
 
 }
 
-void rb_insert(struct rb_node **rb_root, struct rb_node **new)
+void rb_insert(struct rb_node **rb_root, struct rb_node *new)
 {
     struct rb_node *x = *rb_root;
-    struct rb_node *y = NULL;
+    struct rb_node *y = t_nil;
     
-    while (x != NULL) {
+    while (x != t_nil) {
         y = x;
         
-        if (strcmp((*new)->key, x->key) < 0)
+        if (strcmp(new->key, x->key) < 0)
             x = x->left;
         else
             x = x->right;
-        /*} else if (strcmp((*new)->key, x->key) > 0) {
+        /*} else if (strcmp(new->key, x->key) > 0) {
             x = x->right;
         } else {
             return; // Avoid duplicates
         }*/
     }
-    (*new)->parent = y;
+    new->parent = y;
     
-    if (y == NULL)
-        *rb_root = *new; // Empty tree
-    else if (strcmp((*new)->key, y->key) < 0)
-        y->left = *new;
+    if (y == t_nil)
+        *rb_root = new; // Empty tree
+    else if (strcmp(new->key, y->key) < 0)
+        y->left = new;
     else
-        y->right = *new;
+        y->right = new;
     
-    (*new)->left  = NULL;
-    (*new)->right = NULL;
-    (*new)->color = RED;  
+    new->left  = t_nil;
+    new->right = t_nil;
+    new->color = RED;  
     rb_insert_fixup(rb_root, new);
 }
 
-void rb_insert_fixup(struct rb_node **rb_root, struct rb_node **new)
+void rb_insert_fixup(struct rb_node **rb_root, struct rb_node *new)
 {
     struct rb_node *x, *y;
     
-    if (*new == *rb_root) {
+    if (new == *rb_root) {
         (*rb_root)->color = BLACK;
     } else {
-        x = (*new)->parent;
+        x = new->parent;
         if (x->color == RED) {
             if (x == x->parent->left) {
                 y = x->parent->right;
@@ -329,16 +329,16 @@ void rb_insert_fixup(struct rb_node **rb_root, struct rb_node **new)
                     x->color = BLACK;
                     y->color = BLACK;
                     x->parent->color = RED;
-                    rb_insert_fixup(rb_root, &x->parent);
+                    rb_insert_fixup(rb_root, x->parent);
                 } else {
-                    if (*new == x->right) {
-                        *new = x;
+                    if (new == x->right) {
+                        new = x;
                         rotate_left(rb_root, new);
-                        x = (*new)->parent;
+                        x = new->parent;
                     }
                     x->color = BLACK;
                     x->parent->color = RED;
-                    rotate_right(rb_root, &x->parent);
+                    rotate_right(rb_root, x->parent);
                 }
             } else {
                  y = x->parent->left;
@@ -346,99 +346,99 @@ void rb_insert_fixup(struct rb_node **rb_root, struct rb_node **new)
                     x->color = BLACK;
                     y->color = BLACK;
                     x->parent->color = RED;
-                    rb_insert_fixup(rb_root, &x->parent);
+                    rb_insert_fixup(rb_root, x->parent);
                 } else {
-                    if (*new == x->left) {
-                        *new = x;
+                    if (new == x->left) {
+                        new = x;
                         rotate_right(rb_root, new);
-                        x = (*new)->parent;
+                        x = new->parent;
                     }
                     x->color = BLACK;
                     x->parent->color = RED;
-                    rotate_left(rb_root, &x->parent);
+                    rotate_left(rb_root, x->parent);
                 }
             }
         }
     }
 }
 
-struct rb_node *rb_delete(struct rb_node **rb_root, struct rb_node **node)
+struct rb_node *rb_delete(struct rb_node **rb_root, struct rb_node *node)
 {
     struct rb_node *x, *y;
     
-    if ((*node)->left == NULL || (*node)->right == NULL)
-        y = *node;
+    if (node->left == t_nil || node->right == t_nil)
+        y = node;
     else
         y = tree_successor(node);
-    if (y->left != NULL)
+    if (y->left != t_nil)
         x = y->left;
     else
         x = y->right;
     
     x->parent = y->parent;
-    if (y->parent == NULL)
+    if (y->parent == t_nil)
         *rb_root = x;
     else if (y == y->parent->left)
         y->parent->left = x;
     else
         y->parent->right = x;
     
-    if (y != *node)
-        (*node)->key = y->key;
+    if (y != node)
+        node->key = y->key;
     if (y->color == BLACK)
-        rb_delete_fixup(rb_root, &x);
+        rb_delete_fixup(rb_root, x);
     return y;
 }
 
-void rb_delete_fixup(struct rb_node **rb_root, struct rb_node **x)
+void rb_delete_fixup(struct rb_node **rb_root, struct rb_node *x)
 {
     struct rb_node *w;
     
-    if ((*x)->color == RED || (*x)->parent == NULL) {
-        (*x)->color = BLACK;
-    } else if (*x == (*x)->parent->left) {
-        w = (*x)->parent->right;
+    if (x->color == RED || x->parent == t_nil) {
+        x->color = BLACK;
+    } else if (x == x->parent->left) {
+        w = x->parent->right;
         if (w->color == RED) {
             w->color = BLACK;
-            (*x)->parent->color = RED;
-            rotate_left(rb_root, &(*x)->parent);
-            w = (*x)->parent->right;
+            x->parent->color = RED;
+            rotate_left(rb_root, x->parent);
+            w = x->parent->right;
         } 
         if (w->left->color == BLACK && w->right->color == BLACK) {
             w->color = RED;
-            rb_delete_fixup(rb_root, &(*x)->parent);
+            rb_delete_fixup(rb_root, x->parent);
         } else {
             if (w->right->color == BLACK) {
                 w->left->color = BLACK;
                 w->color = RED;
-                rotate_right(rb_root, &w);
-                w = (*x)->parent->right;
+                rotate_right(rb_root, w);
+                w = x->parent->right;
             }
-            w->color = (*x)->parent->color;
-            (*x)->parent->color = BLACK;
-            rotate_left(rb_root, &(*x)->parent);
+            w->color = x->parent->color;
+            x->parent->color = BLACK;
+            rotate_left(rb_root, x->parent);
         }
     } else {
-         w = (*x)->parent->left;
+         w = x->parent->left;
         if (w->color == RED) {
             w->color = BLACK;
-            (*x)->parent->color = RED;
-            rotate_right(rb_root, &(*x)->parent);
-            w = (*x)->parent->left;
+            x->parent->color = RED;
+            rotate_right(rb_root, x->parent);
+            w = x->parent->left;
         } 
         if (w->left->color == BLACK && w->right->color == BLACK) {
             w->color = RED;
-            rb_delete_fixup(rb_root, &(*x)->parent);
+            rb_delete_fixup(rb_root, x->parent);
         } else {
             if (w->left->color == BLACK) {
                 w->right->color = BLACK;
                 w->color = RED;
-                rotate_left(rb_root, &w);
-                w = (*x)->parent->left;
+                rotate_left(rb_root, w);
+                w = x->parent->left;
             }
-            w->color = (*x)->parent->color;
-            (*x)->parent->color = BLACK;
-            rotate_right(rb_root, &(*x)->parent);
+            w->color = x->parent->color;
+            x->parent->color = BLACK;
+            rotate_right(rb_root, x->parent);
         }
         
     }
@@ -446,7 +446,7 @@ void rb_delete_fixup(struct rb_node **rb_root, struct rb_node **x)
 
 struct rb_node **rb_search(struct rb_node **rb_root, char *key)
 {
-    if (*rb_root == NULL || strcmp(key, (*rb_root)->key) == 0)
+    if (*rb_root == t_nil || strcmp(key, (*rb_root)->key) == 0)
         return rb_root;
     if (strcmp(key, (*rb_root)->key) < 0)
         return rb_search(&(*rb_root)->left, key);
@@ -454,58 +454,58 @@ struct rb_node **rb_search(struct rb_node **rb_root, char *key)
         return rb_search(&(*rb_root)->right, key);
 }
 
-void rotate_left(struct rb_node **rb_root, struct rb_node **x)
+void rotate_left(struct rb_node **rb_root, struct rb_node *x)
 {
-    struct rb_node *y = (*x)->right;
-    (*x)->right = y->left;
+    struct rb_node *y = x->right;
+    x->right = y->left;
     
-    if (y->left != NULL)
-        y->left->parent = *x;
-    y->parent = (*x)->parent;
-    if ((*x)->parent == NULL)
+    if (y->left != t_nil)
+        y->left->parent = x;
+    y->parent = x->parent;
+    if (x->parent == t_nil)
         *rb_root = y;
-    else if (*x == (*x)->parent->left)
-        (*x)->parent->left = y;
+    else if (x == x->parent->left)
+        x->parent->left = y;
     else
-        (*x)->parent->right = y;
-    y->left = *x;
-    (*x)->parent = y;
+        x->parent->right = y;
+    y->left = x;
+    x->parent = y;
 }
 
-void rotate_right(struct rb_node **rb_root, struct rb_node **x)
+void rotate_right(struct rb_node **rb_root, struct rb_node *x)
 {
-    struct rb_node *y = (*x)->left;
-    (*x)->left = y->right;
+    struct rb_node *y = x->left;
+    x->left = y->right;
     
-    if (y->right != NULL)
-        y->left->parent = *x;
-    y->parent = (*x)->parent;
-    if ((*x)->parent == NULL)
+    if (y->right != t_nil)
+        y->left->parent = x;
+    y->parent = x->parent;
+    if (x->parent == t_nil)
         *rb_root = y;
-    else if (*x == (*x)->parent->right)
-        (*x)->parent->right = y;
+    else if (x == x->parent->right)
+        x->parent->right = y;
     else
-        (*x)->parent->left = y;
-    y->right = *x;
-    (*x)->parent = y;
+        x->parent->left = y;
+    y->right = x;
+    x->parent = y;
 }
 
-struct rb_node *tree_minimum(struct rb_node **node) 
+struct rb_node *tree_minimum(struct rb_node *node) 
 {
-    while ((*node)->left != NULL)
-        *node = (*node)->left;
-    return *node;
+    while (node->left != t_nil)
+        node = node->left;
+    return node;
 }
 
-struct rb_node *tree_successor(struct rb_node **node)
+struct rb_node *tree_successor(struct rb_node *node)
 {
     struct rb_node *y;
     
-    if ((*node)->right != NULL)
-        return tree_minimum(&(*node)->right);
-    y = (*node)->parent;
-    while (y != NULL && *node == y->right) {
-        *node = y;
+    if (node->right != t_nil)
+        return tree_minimum(node->right);
+    y = node->parent;
+    while (y != t_nil && node == y->right) {
+        node = y;
         y = y->parent;
     }
     return y;
@@ -513,7 +513,7 @@ struct rb_node *tree_successor(struct rb_node **node)
 
 void rb_free(struct rb_node **rb_root)
 {
-    if (*rb_root == NULL)
+    if (*rb_root == t_nil)
         return;
 
     rb_free(&(*rb_root)->left);
