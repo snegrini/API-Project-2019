@@ -102,7 +102,6 @@ int main(int argc, char *argv[])
                 id_ent = malloc(sizeof(char) * len);
             }
             sscanf(line, "%*s %s", id_ent);
-            //printf("ADDENT %s\n", id_ent);
             addent(&ent_rb_root, id_ent);
         } else if (strncmp(command, "delent", 7) == 0) {
             if (!id_ent) {
@@ -141,7 +140,6 @@ int main(int argc, char *argv[])
             printf("REPORT\n");
             report();
         }
-        printf("\n");
     } while (strncmp(command, "end", 4) != 0);
     
     free(line);
@@ -278,7 +276,7 @@ void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
 
 void report(void)
 {
-
+    
 }
 
 void rb_insert(struct rb_node **rb_root, struct rb_node *new)
@@ -296,7 +294,7 @@ void rb_insert(struct rb_node **rb_root, struct rb_node *new)
         /*} else if (strcmp(new->key, x->key) > 0) {
             x = x->right;
         } else {
-            return; // Avoid duplicates
+            return; // TODO: Avoid duplicates
         }*/
     }
     new->parent = y;
