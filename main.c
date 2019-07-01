@@ -46,6 +46,7 @@ void delent(struct rb_node **rb_root, char *id_ent);
 void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel);
 void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel);
 void report(struct rb_node **rb_root);
+void print_report(struct adj_list_node *ent_list_head);
 
 /*
  * RB Tree functions
@@ -60,7 +61,7 @@ void rotate_right(struct rb_node **rb_root, struct rb_node *x);
 struct rb_node *tree_minimum(struct rb_node *node);
 struct rb_node *tree_successor(struct rb_node *node);
 void rb_free(struct rb_node **rb_root);
-struct rb_node *rb_visit_inorder(struct rb_node *rb_root)
+void rb_visit_inorder(struct rb_node *rb_root, struct adj_list_node *ent_list_head);
 
 /*
  * Graph functions
@@ -68,6 +69,7 @@ struct rb_node *rb_visit_inorder(struct rb_node *rb_root)
 struct adj_list *adj_list_search(struct adj_list **head, char *name);
 void adj_list_node_insert(struct adj_list_node **head, char *id_ent);
 struct adj_list_node *adj_list_node_search(struct adj_list_node **head, char *id_ent);
+void adj_list_node_free(struct adj_list_node *head);
 
 /*
  * Input functions
@@ -145,7 +147,7 @@ int main(int argc, char *argv[])
             delrel(&rel_rb_root, id_orig, id_dest, id_rel);
         } else if (strncmp(command, "report", 7) == 0) {
             printf("REPORT\n");
-            report(rel_rb_root);
+            report(&rel_rb_root);
         }
     } while (strncmp(command, "end", 4) != 0);
     
@@ -287,7 +289,16 @@ void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
 
 void report(struct rb_node **rb_root)
 {
-    rb_visit_inorder();
+    struct adj_list_node *ent_list_head = NULL;
+    rb_visit_inorder(*rb_root, ent_list_head);
+    print_report(ent_list_head);
+}
+
+void print_report(struct adj_list_node *ent_list_head)
+{
+    while (ent_list_head != NULL) {
+        printf("%s", ent_list_head->id_ent);
+    }
 }
 
 void rb_insert(struct rb_node **rb_root, struct rb_node *new)
@@ -531,13 +542,44 @@ void rb_free(struct rb_node **rb_root)
     free(*rb_root);
 }
 
-struct rb_node *rb_visit_inorder(struct rb_node *rb_root)
+void rb_visit_inorder(struct rb_node *rb_root, struct adj_list_node *ent_list_head)
 {
+    unsigned int curr_max_size;
+    struct adj_list_node *tmp_list_node;
+    
+    curr_max_size = 0;
+    
     if (rb_root != t_nil) {
-        rb_visit_inorder(rb_root->left);
-        printf("%s ", key);
-        // TODO: aggiungo qui la funzione per calcolare le entità con più relazioni riceventi.
-        rb_visit_inorder(rb_root->right);
+        rb_visit_inorder(rb_root->left, ent_list_head);
+        
+        /*
+         * TODO: rifare pezzo sotto. La lista deve essere riordinata, quindi salvare i ";" e nome relazione
+         * dentro la lista non va bene.
+         * Meglio salvare le entità massime in un RBT, con root "id_rel" e altri nodi "id_ent", 
+         * che ha già inserimento in ordine alfabetico e successivamente è più facile stampare le
+         * varie relazioni con entità e ";" tra ogni relazione diversa.
+         */
+        while (rb_root->ent_graph->adj_list_ent != NULL) {
+            if (rb_root->ent_graph->adj_list_ent->size == curr_max_size) {
+                tmp_list_node = malloc(sizeof(struct adj_list_node));
+                tmp_list_node->id_ent = rb_root->ent_graph->adj_list_ent->name;
+                tmp_list_node->next = ent_list_head;
+                ent_list_head = tmp_list_node;
+            } else if (rb_root->ent_graph->adj_list_ent->size > curr_max_size) {
+                if (ent_list_head != NULL) {
+                    adj_list_node_free(ent_list_head);
+                }
+                tmp_list_node = malloc(sizeof(struct adj_list_node));
+                tmp_list_node->id_ent = rb_root->ent_graph->adj_list_ent->name;
+                ent_list_head = tmp_list_node;
+            }
+            rb_root->ent_graph->adj_list_ent = rb_root->ent_graph->adj_list_ent->next_list;
+        }
+        tmp_list_node = malloc(sizeof(struct adj_list_node));
+        strcpy(tmp_list_node->id_ent, ";");
+        ent_list_head = tmp_list_node;
+        
+        rb_visit_inorder(rb_root->right, ent_list_head);
     }
 }
 
@@ -565,6 +607,16 @@ struct adj_list_node *adj_list_node_search(struct adj_list_node **head, char *id
         curr = curr->next;
     }
     return curr;
+}
+
+void adj_list_node_free(struct adj_list_node *head)
+{
+    struct adj_list_node *curr;
+    while (head != NULL) {
+        curr = head;
+        head = head->next;
+        free(curr);
+    }
 }
 
 void readLine(char **str)
