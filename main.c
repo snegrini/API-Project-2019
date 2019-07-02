@@ -61,6 +61,7 @@ void rotate_right(struct rb_node **rb_root, struct rb_node *x);
 struct rb_node *tree_minimum(struct rb_node *node);
 struct rb_node *tree_successor(struct rb_node *node);
 void rb_free(struct rb_node **rb_root);
+struct rb_node *rb_create_node(char *id_ent);
 void rb_visit_inorder(struct rb_node *rb_root, struct adj_list_node *ent_list_head);
 
 /*
@@ -80,7 +81,7 @@ int main(int argc, char *argv[])
 {
     char *line = malloc(sizeof(char) * (DEFAULT_STRING_LENGTH + 1));
     
-    char command[7];    
+    char command[8];    
     char *id_ent  = NULL;
     char *id_orig = NULL;
     char *id_dest = NULL;
@@ -124,13 +125,19 @@ int main(int argc, char *argv[])
                 id_rel = malloc(sizeof(char) * len);
             }
             sscanf(line, "%*s %s %s %s", id_orig, id_dest, id_rel);
-            printf("ADDREL %s %s %s\n", id_orig, id_dest, id_rel);
+            
             
             /*
              * Verifico che le entità della relazione siano monitorate.
              */
+            struct rb_node *tmp_orig = rb_search(&ent_rb_root, id_orig);
+            struct rb_node *tmp_dest = rb_search(&ent_rb_root, id_dest);
+            *tmp_orig = *tmp_orig;
+            *tmp_dest = *tmp_dest;
+            
             if (rb_search(&ent_rb_root, id_orig) != t_nil && rb_search(&ent_rb_root, id_dest) != t_nil) {
                 addrel(&rel_rb_root, id_orig, id_dest, id_rel);
+                printf("ADDREL %s %s %s\n", id_orig, id_dest, id_rel);
             }            
         } else if (strncmp(command, "delrel", 7) == 0) {
             if (!id_orig) {
@@ -165,10 +172,7 @@ int main(int argc, char *argv[])
 
 void addent(struct rb_node **rb_root, char *id_ent)
 {
-    struct rb_node *new_node_ent;
-    
-    new_node_ent = malloc(sizeof(struct rb_node));
-    new_node_ent->key = id_ent;
+    struct rb_node *new_node_ent = rb_create_node(id_ent);
     rb_insert(rb_root, new_node_ent);
 }
 
@@ -540,6 +544,16 @@ void rb_free(struct rb_node **rb_root)
     rb_free(&(*rb_root)->right);
 
     free(*rb_root);
+}
+
+struct rb_node *rb_create_node(char *id_ent) 
+{
+    struct rb_node *new_node_ent;
+    
+    new_node_ent = malloc(sizeof(struct rb_node));
+    new_node_ent->key = malloc(sizeof(id_ent));
+    *(new_node_ent->key) = *id_ent;
+    return new_node_ent;
 }
 
 void rb_visit_inorder(struct rb_node *rb_root, struct adj_list_node *ent_list_head)
