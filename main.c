@@ -61,7 +61,6 @@ void rotate_right(struct rb_node **rb_root, struct rb_node *x);
 struct rb_node *tree_minimum(struct rb_node *node);
 struct rb_node *tree_successor(struct rb_node *node);
 void rb_free(struct rb_node **rb_root);
-struct rb_node *rb_create_node(char *id_ent);
 void rb_visit_inorder(struct rb_node *rb_root, struct adj_list_node *ent_list_head);
 
 /*
@@ -75,7 +74,7 @@ void adj_list_node_free(struct adj_list_node *head);
 /*
  * Input functions
  */
-void readLine(char **str);
+int readLine(char **str);
 
 int main(int argc, char *argv[])
 {
@@ -87,7 +86,7 @@ int main(int argc, char *argv[])
     char *id_dest = NULL;
     char *id_rel  = NULL;
     
-    size_t len;
+    int len;
     
     struct rb_node *ent_rb_root; // Store all entities before relations are created
     struct rb_node *rel_rb_root;
@@ -96,34 +95,21 @@ int main(int argc, char *argv[])
     rel_rb_root = t_nil;
     
     do {
-        readLine(&line);
+        len = readLine(&line);
         sscanf(line, "%7s", command);
-        
-        len = strlen(line);
-        
+                
         if (strncmp(command, "addent", 7) == 0) {
-            if (!id_ent) {
-                id_ent = malloc(sizeof(char) * len);
-            }
+            id_ent = malloc(sizeof(char) * len);
             sscanf(line, "%*s %s", id_ent);
             addent(&ent_rb_root, id_ent);
         } else if (strncmp(command, "delent", 7) == 0) {
-            if (!id_ent) {
-                id_ent = malloc(sizeof(char) * len);
-            }
+            id_ent = malloc(sizeof(char) * len);
             sscanf(line, "%*s %s", id_ent);
-            printf("DELENT %s\n", id_ent);
             delent(&ent_rb_root, id_ent);
         } else if (strncmp(command, "addrel", 7) == 0) {
-            if (!id_orig) {
-                id_orig = malloc(sizeof(char) * len);
-            }
-            if (!id_dest) {
-                id_dest = malloc(sizeof(char) * len);
-            }
-            if (!id_rel) {
-                id_rel = malloc(sizeof(char) * len);
-            }
+            id_orig = malloc(sizeof(char) * len);
+            id_dest = malloc(sizeof(char) * len);
+            id_rel = malloc(sizeof(char) * len);
             sscanf(line, "%*s %s %s %s", id_orig, id_dest, id_rel);
             
             
@@ -137,32 +123,23 @@ int main(int argc, char *argv[])
             
             if (rb_search(&ent_rb_root, id_orig) != t_nil && rb_search(&ent_rb_root, id_dest) != t_nil) {
                 addrel(&rel_rb_root, id_orig, id_dest, id_rel);
-                printf("ADDREL %s %s %s\n", id_orig, id_dest, id_rel);
             }            
         } else if (strncmp(command, "delrel", 7) == 0) {
-            if (!id_orig) {
-                id_orig = malloc(sizeof(char) * len);
-            }
-            if (!id_dest) {
-                id_dest = malloc(sizeof(char) * len);
-            }
-            if (!id_rel) {
-                id_rel = malloc(sizeof(char) * len);
-            }
+            id_orig = malloc(sizeof(char) * len);
+            id_dest = malloc(sizeof(char) * len);
+            id_rel = malloc(sizeof(char) * len);
             sscanf(line, "%*s %s %s %s", id_orig, id_dest, id_rel);
-            printf("DELREL %s %s %s\n", id_orig, id_dest, id_rel);
             delrel(&rel_rb_root, id_orig, id_dest, id_rel);
         } else if (strncmp(command, "report", 7) == 0) {
-            printf("REPORT\n");
             report(&rel_rb_root);
         }
     } while (strncmp(command, "end", 4) != 0);
     
-    free(line);
+    /*free(line);
     free(id_ent);
     free(id_orig);
     free(id_dest);
-    free(id_rel);
+    free(id_rel);*/
     
     rb_free(&ent_rb_root);
     rb_free(&rel_rb_root);
@@ -172,7 +149,10 @@ int main(int argc, char *argv[])
 
 void addent(struct rb_node **rb_root, char *id_ent)
 {
-    struct rb_node *new_node_ent = rb_create_node(id_ent);
+    struct rb_node *new_node_ent;
+    new_node_ent = malloc(sizeof(struct rb_node));
+    new_node_ent->key = id_ent;
+    
     rb_insert(rb_root, new_node_ent);
 }
 
@@ -546,16 +526,6 @@ void rb_free(struct rb_node **rb_root)
     free(*rb_root);
 }
 
-struct rb_node *rb_create_node(char *id_ent) 
-{
-    struct rb_node *new_node_ent;
-    
-    new_node_ent = malloc(sizeof(struct rb_node));
-    new_node_ent->key = malloc(sizeof(id_ent));
-    *(new_node_ent->key) = *id_ent;
-    return new_node_ent;
-}
-
 void rb_visit_inorder(struct rb_node *rb_root, struct adj_list_node *ent_list_head)
 {
     unsigned int curr_max_size;
@@ -633,7 +603,7 @@ void adj_list_node_free(struct adj_list_node *head)
     }
 }
 
-void readLine(char **str)
+int readLine(char **str)
 {
     int ch, i = 0;
     
@@ -645,5 +615,6 @@ void readLine(char **str)
         }
     }
     (*str)[i] = '\0';
+    return i;
 }
 
