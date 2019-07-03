@@ -61,7 +61,7 @@ void rotate_right(struct rb_node **rb_root, struct rb_node *x);
 struct rb_node *tree_minimum(struct rb_node *node);
 struct rb_node *tree_successor(struct rb_node *node);
 void rb_free(struct rb_node **rb_root);
-void rb_visit_inorder(struct rb_node *rb_root, struct adj_list_node *ent_list_head);
+void rb_visit_inorder(struct rb_node *rb_root, struct adj_list_node **ent_list_head);
 
 /*
  * Graph functions
@@ -188,7 +188,7 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
         node_rel->ent_graph->curr_size = 1;
         
         node_ent = malloc(sizeof(struct adj_list_node));
-        node_ent->id_ent = id_dest;
+        node_ent->id_ent = id_orig;
         node_ent->next = NULL;
         
         node_rel->ent_graph->adj_list_ent->node = node_ent;
@@ -274,7 +274,7 @@ void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
 void report(struct rb_node **rb_root)
 {
     struct adj_list_node *ent_list_head = NULL;
-    rb_visit_inorder(*rb_root, ent_list_head);
+    rb_visit_inorder(*rb_root, &ent_list_head);
     print_report(ent_list_head);
 }
 
@@ -282,6 +282,7 @@ void print_report(struct adj_list_node *ent_list_head)
 {
     while (ent_list_head != NULL) {
         printf("%s", ent_list_head->id_ent);
+        ent_list_head = ent_list_head->next;
     }
 }
 
@@ -526,7 +527,7 @@ void rb_free(struct rb_node **rb_root)
     free(*rb_root);
 }
 
-void rb_visit_inorder(struct rb_node *rb_root, struct adj_list_node *ent_list_head)
+void rb_visit_inorder(struct rb_node *rb_root, struct adj_list_node **ent_list_head)
 {
     unsigned int curr_max_size;
     struct adj_list_node *tmp_list_node;
@@ -535,34 +536,31 @@ void rb_visit_inorder(struct rb_node *rb_root, struct adj_list_node *ent_list_he
     
     if (rb_root != t_nil) {
         rb_visit_inorder(rb_root->left, ent_list_head);
-        
-        /*
-         * TODO: rifare pezzo sotto. La lista deve essere riordinata, quindi salvare i ";" e nome relazione
-         * dentro la lista non va bene.
-         * Meglio salvare le entità massime in un RBT, con root "id_rel" e altri nodi "id_ent", 
-         * che ha già inserimento in ordine alfabetico e successivamente è più facile stampare le
-         * varie relazioni con entità e ";" tra ogni relazione diversa.
-         */
+
         while (rb_root->ent_graph->adj_list_ent != NULL) {
             if (rb_root->ent_graph->adj_list_ent->size == curr_max_size) {
                 tmp_list_node = malloc(sizeof(struct adj_list_node));
                 tmp_list_node->id_ent = rb_root->ent_graph->adj_list_ent->name;
-                tmp_list_node->next = ent_list_head;
-                ent_list_head = tmp_list_node;
+                tmp_list_node->next = *ent_list_head;
+                *ent_list_head = tmp_list_node;
             } else if (rb_root->ent_graph->adj_list_ent->size > curr_max_size) {
-                if (ent_list_head != NULL) {
-                    adj_list_node_free(ent_list_head);
+                if (*ent_list_head != NULL) {
+                    adj_list_node_free(*ent_list_head);
                 }
                 tmp_list_node = malloc(sizeof(struct adj_list_node));
                 tmp_list_node->id_ent = rb_root->ent_graph->adj_list_ent->name;
-                ent_list_head = tmp_list_node;
+                tmp_list_node->next = NULL;
+                *ent_list_head = tmp_list_node;
+                curr_max_size = rb_root->ent_graph->adj_list_ent->size;
             }
             rb_root->ent_graph->adj_list_ent = rb_root->ent_graph->adj_list_ent->next_list;
         }
-        tmp_list_node = malloc(sizeof(struct adj_list_node));
-        strcpy(tmp_list_node->id_ent, ";");
-        ent_list_head = tmp_list_node;
-        
+        /*tmp_list_node = malloc(sizeof(struct adj_list_node));
+        tmp_list_node->id_ent = ";";
+        tmp_list_node->next = NULL;
+        //strcpy(tmp_list_node->id_ent, ";");
+        *ent_list_head = tmp_list_node;
+        */
         rb_visit_inorder(rb_root->right, ent_list_head);
     }
 }
