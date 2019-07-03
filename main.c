@@ -192,7 +192,7 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
         node_ent->next = NULL;
         
         node_rel->ent_graph->adj_list_ent->node = node_ent;
-        node_rel->ent_graph->adj_list_ent->size = node_rel->ent_graph->adj_list_ent->size + 1; 
+        node_rel->ent_graph->adj_list_ent->size = 1; 
         
         rb_insert(rb_root, node_rel);
     } else {
@@ -555,12 +555,12 @@ void rb_visit_inorder(struct rb_node *rb_root, struct adj_list_node **ent_list_h
             }
             rb_root->ent_graph->adj_list_ent = rb_root->ent_graph->adj_list_ent->next_list;
         }
-        /*tmp_list_node = malloc(sizeof(struct adj_list_node));
+        tmp_list_node = malloc(sizeof(struct adj_list_node));
         tmp_list_node->id_ent = ";";
         tmp_list_node->next = NULL;
         //strcpy(tmp_list_node->id_ent, ";");
         *ent_list_head = tmp_list_node;
-        */
+        
         rb_visit_inorder(rb_root->right, ent_list_head);
     }
 }
