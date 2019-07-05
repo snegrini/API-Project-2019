@@ -68,6 +68,7 @@ void rb_visit_inorder(struct rb_node *rb_root);
 struct adj_list *adj_list_search(struct adj_list **head, char *name);
 void adj_list_node_insert(struct adj_list_node **head, char *id_ent);
 void adj_list_node_insert_inorder(struct adj_list_node **head, char *id_ent);
+void adj_list_node_print(struct adj_list_node *head);
 struct adj_list_node *adj_list_node_search(struct adj_list_node **head, char *id_ent);
 void adj_list_node_free(struct adj_list_node *head);
 
@@ -527,14 +528,14 @@ void rb_visit_inorder(struct rb_node *rb_root)
         rb_visit_inorder(rb_root->left);
         
         printf("%s", rb_root->key);
-        
         while (rb_root->ent_graph->adj_list_ent != NULL) {
             if (rb_root->ent_graph->adj_list_ent->size == curr_max_size) {
                 adj_list_node_insert_inorder(&ent_list_head, rb_root->ent_graph->adj_list_ent->name);
+                printf("\nAAAAAAAAAAAAAAAA\n");
+                adj_list_node_print(ent_list_head);
+                printf("\nBBBBBBBBBBBBBBBBB\n");
             } else if (rb_root->ent_graph->adj_list_ent->size > curr_max_size) {
-                if (ent_list_head != NULL) {
-                    adj_list_node_free(ent_list_head);
-                }
+                adj_list_node_free(ent_list_head);
                 tmp_list_node = malloc(sizeof(struct adj_list_node));
                 tmp_list_node->id_ent = rb_root->ent_graph->adj_list_ent->name;
                 tmp_list_node->next = NULL;
@@ -543,11 +544,9 @@ void rb_visit_inorder(struct rb_node *rb_root)
             }
             rb_root->ent_graph->adj_list_ent = rb_root->ent_graph->adj_list_ent->next_list;
         }
-        while (ent_list_head != NULL) {
-            printf(" %s", ent_list_head->id_ent);
-            ent_list_head = ent_list_head->next;
-        }
+        adj_list_node_print(ent_list_head);
         printf(" %d; ", curr_max_size);
+        adj_list_node_free(ent_list_head);
         
         rb_visit_inorder(rb_root->right);
     }
@@ -585,6 +584,16 @@ void adj_list_node_insert_inorder(struct adj_list_node **head, char *id_ent)
     new_node->id_ent = id_ent;
     new_node->next = curr;
     prev->next = new_node;
+}
+
+void adj_list_node_print(struct adj_list_node *head)
+{
+    struct adj_list_node *curr;
+    curr = head;
+    while (curr != NULL) {
+        printf(" %s", curr->id_ent);
+        curr = curr->next;
+    }
 }
 
 struct adj_list_node *adj_list_node_search(struct adj_list_node **head, char *id_ent)
