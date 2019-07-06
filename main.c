@@ -10,6 +10,7 @@
 
 struct adj_list_node {
     char *id_ent;
+    struct adj_list_node *prev;
     struct adj_list_node *next;
 };
 
@@ -43,7 +44,7 @@ struct rb_node *t_nil = &m;
 int first_print = 1;
 
 void addent(struct rb_node **rb_root, char **id_ent);
-void delent(struct rb_node **rb_root, char *id_ent);
+void delent(struct rb_node **ent_rb_root, struct rb_node **rel_rb_root, char *id_ent);
 void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char **id_rel);
 void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel);
 void report(struct rb_node **rb_root);
@@ -60,8 +61,10 @@ void rotate_left(struct rb_node **rb_root, struct rb_node *x);
 void rotate_right(struct rb_node **rb_root, struct rb_node *x);
 struct rb_node *tree_minimum(struct rb_node *node);
 struct rb_node *tree_successor(struct rb_node *node);
-void rb_free(struct rb_node **rb_root);
-void rb_visit_inorder(struct rb_node *rb_root);
+void rb_free(struct rb_node *rb_root);
+void rb_delete_id_ent(struct rb_node **rel_rb_root, struct rb_node **curr_rb_root, char *id_ent);
+void rb_delete_rel_ent(struct rb_node **rb_root, struct rb_node *rel_node, char *id_orig, char *id_dest);
+void print_report(struct rb_node *rb_root);
 
 /*
  * Graph functions
@@ -71,7 +74,10 @@ void adj_list_node_insert(struct adj_list_node **head, char *id_ent);
 void adj_list_node_insert_inorder(struct adj_list_node **head, char *id_ent);
 void adj_list_node_print(struct adj_list_node *head);
 struct adj_list_node *adj_list_node_search(struct adj_list_node **head, char *id_ent);
-void adj_list_node_free(struct adj_list_node *head);
+void adj_list_node_delete(struct adj_list_node **head, struct adj_list_node *node);
+void graph_free(struct graph *grp);
+void adj_list_free(struct adj_list *head);
+void adj_list_node_free(struct adj_list_node *head, int clear_id_ent);
 
 /*
  * Input functions
@@ -107,7 +113,7 @@ int main(int argc, char *argv[])
         } else if (strncmp(command, "delent", 7) == 0) {
             id_ent = malloc(sizeof(char) * len);
             sscanf(line, "%*s %s", id_ent);
-            delent(&ent_rb_root, id_ent);
+            delent(&ent_rb_root, &rel_rb_root, id_ent);
         } else if (strncmp(command, "addrel", 7) == 0) {
             id_orig = malloc(sizeof(char) * len);
             id_dest = malloc(sizeof(char) * len);
@@ -131,8 +137,8 @@ int main(int argc, char *argv[])
     
     free(line);
     
-    rb_free(&ent_rb_root);
-    rb_free(&rel_rb_root);
+    rb_free(ent_rb_root);
+    rb_free(rel_rb_root);
     
     return 0;
 }
@@ -142,6 +148,7 @@ void addent(struct rb_node **rb_root, char **id_ent)
     struct rb_node *new_node_ent;
     new_node_ent = malloc(sizeof(struct rb_node));
     new_node_ent->key = *id_ent;
+    new_node_ent->ent_graph = NULL;
     
     if (rb_insert(rb_root, new_node_ent) == 0) {
         /* Nessun inserimento, key già presente */
@@ -156,14 +163,13 @@ void delent(struct rb_node **ent_rb_root, struct rb_node **rel_rb_root, char *id
     
     node_tmp = rb_search(ent_rb_root, id_ent);
     rb_delete(ent_rb_root, node_tmp);
+    free(node_tmp->key);
     free(node_tmp);
     
-    
-    /*
-     * TODO: visito tutto l'albero delle relazioni per cercare se ne esistono.
-     * Quando trovo una relazione con l'entità cercata, cancello l'entità dalla
-     * lista delle relazioni. Se era l'unica relazione esistente, cancello anche
-     * la relazione dall'albero delle relazioni.
+    if (*rel_rb_root != t_nil) {
+        rb_delete_id_ent(rel_rb_root, rel_rb_root, id_ent);
+    }
+    free(id_ent);
 }
 
 /*
@@ -190,6 +196,7 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char **id_re
         
         node_ent = malloc(sizeof(struct adj_list_node));
         node_ent->id_ent = id_orig;
+        node_ent->prev = NULL;
         node_ent->next = NULL;
         
         node_rel->ent_graph->adj_list_ent->node = node_ent;
@@ -234,12 +241,15 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char **id_re
             /*
              * Cerco, se esiste, il nodo dell'entità id_orig.
              * Se non esiste lo aggiungo in testa alla lista di adiacenza.
-             * Se esiste, non faccio nulla.
+             * Se esiste, libero lo spazio della stringa id_orig e non faccio altro.
              */
+            free(id_dest); /* La lista esiste già, non serve più */
             node_ent = adj_list_node_search(&adj_list_ent->node, id_orig);
             if (node_ent == NULL) {
                 adj_list_node_insert(&adj_list_ent->node, id_orig);
                 adj_list_ent->size = adj_list_ent->size + 1;
+            } else {
+                free(id_orig);
             }
         }
         
@@ -267,7 +277,11 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char **id_re
 
 void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel)
 {
-    
+    struct rb_node *tmp_rb_node;
+    tmp_rb_node = rb_search(rb_root, id_rel);
+    if (tmp_rb_node != t_nil) {
+        rb_delete_rel_ent(rb_root, tmp_rb_node, id_orig, id_dest);
+    }
 }
 
 void report(struct rb_node **rb_root)
@@ -275,7 +289,7 @@ void report(struct rb_node **rb_root)
     if (*rb_root == t_nil) {
         printf("none\n");
     } else {
-        rb_visit_inorder(*rb_root);
+        print_report(*rb_root);
         printf("\n");
         first_print = 1;
     }
@@ -513,28 +527,104 @@ struct rb_node *tree_successor(struct rb_node *node)
     return y;
 }
 
-void rb_free(struct rb_node **rb_root)
+void rb_free(struct rb_node *rb_root)
 {
-    if (*rb_root == t_nil)
+    if (rb_root == t_nil)
         return;
 
-    rb_free(&(*rb_root)->left);
-    rb_free(&(*rb_root)->right);
+    rb_free(rb_root->left);
+    rb_free(rb_root->right);
 
-    free((*rb_root)->key);
-    free(*rb_root);
+    free(rb_root->key);
+    graph_free(rb_root->ent_graph);
+    free(rb_root);
 }
 
-void rb_visit_inorder(struct rb_node *rb_root)
+void rb_delete_rel_ent(struct rb_node **rb_root, struct rb_node *rel_node, char *id_orig, char *id_dest)
+{
+    struct graph *curr_graph = rel_node->ent_graph;
+    struct adj_list *curr_list = rel_node->ent_graph->adj_list_ent;
+    struct adj_list_node *curr_node = rel_node->ent_graph->adj_list_ent->node;
+        
+    while (curr_list != NULL) {
+        if (strcmp(curr_list->name, id_dest) == 0) {
+            while (curr_node != NULL && strcmp(curr_node->id_ent, id_orig) != 0) {
+                curr_node = curr_node->next;
+            }
+            if (strcmp(curr_node->id_ent, id_orig) == 0) {
+                adj_list_node_delete(&rel_node->ent_graph->adj_list_ent->node, curr_node);
+                curr_list->size = curr_list->size - 1;
+                
+                /* Controllo la dimensione della lista. Se è 0, la lista è vuota e va cancellata */
+                if (curr_list->size == 0) {
+                    adj_list_free(curr_list);
+                    curr_graph->curr_size = curr_graph->curr_size - 1;
+                    /* Controllo la dimensione del grafo. Se è 0, la relazione è vuota e va cancellata */
+                    if (curr_graph->curr_size == 0) {
+                        rb_delete(rb_root, rel_node);
+                        free(rel_node->key);
+                        graph_free(rel_node->ent_graph);
+                        free(rel_node);
+                    }
+                }
+            }
+        }
+        curr_list = curr_list->next_list;
+    }
+}
+
+/*
+ * Visito tutto l'albero delle relazioni per eliminare qualsiasi occorrenza dell'entità cercata.
+ */
+void rb_delete_id_ent(struct rb_node **rel_rb_root, struct rb_node **curr_rb_root, char *id_ent)
+{
+    struct graph *curr_graph = NULL;
+    struct adj_list *curr_list = NULL;
+    struct adj_list_node *curr_node = NULL;
+    
+    rb_delete_id_ent(rel_rb_root, &(*curr_rb_root)->left, id_ent);
+    
+    if (*curr_rb_root != t_nil) {
+        curr_graph = (*curr_rb_root)->ent_graph;
+        curr_list  = (*curr_rb_root)->ent_graph->adj_list_ent;
+        curr_node  = (*curr_rb_root)->ent_graph->adj_list_ent->node;
+        
+        while (curr_list != NULL) {
+            if (strcmp(curr_list->name, id_ent) == 0) {
+                adj_list_free(curr_list);
+                curr_graph->curr_size = curr_graph->curr_size - 1;
+                /* Controllo la dimensione del grafo. Se è 0, la relazione è vuota e va cancellata */
+                if (curr_graph->curr_size == 0) {
+                    rb_delete(rel_rb_root, *curr_rb_root);
+                    free((*curr_rb_root)->key);
+                    graph_free((*curr_rb_root)->ent_graph);
+                    free(*curr_rb_root);
+                }
+            } else {
+                while (curr_node != NULL && strcmp(curr_node->id_ent, id_ent) != 0) {
+                    curr_node = curr_node->next;
+                }
+                if (strcmp(curr_node->id_ent, id_ent) == 0) {
+                    adj_list_node_delete(&(*curr_rb_root)->ent_graph->adj_list_ent->node, curr_node);
+                    curr_list->size = curr_list->size - 1;
+                }
+            }
+            curr_list = curr_list->next_list;
+        }
+    }
+    
+    rb_delete_id_ent(rel_rb_root, &(*curr_rb_root)->right, id_ent);
+}
+
+void print_report(struct rb_node *rb_root)
 {
     unsigned int curr_max_size = 0;
     struct adj_list *curr = NULL;
     struct adj_list_node *ent_list_head = NULL;
-    struct adj_list_node *tmp_list_node = NULL;
         
     if (rb_root != t_nil) {
         curr = rb_root->ent_graph->adj_list_ent;
-        rb_visit_inorder(rb_root->left);
+        print_report(rb_root->left);
         
         if (first_print == 1) {
             printf("%s", rb_root->key);
@@ -547,20 +637,17 @@ void rb_visit_inorder(struct rb_node *rb_root)
             if (curr->size == curr_max_size) {
                 adj_list_node_insert_inorder(&ent_list_head, curr->name);
             } else if (curr->size > curr_max_size) {
-                adj_list_node_free(ent_list_head);
-                tmp_list_node = malloc(sizeof(struct adj_list_node));
-                tmp_list_node->id_ent = curr->name;
-                tmp_list_node->next = NULL;
-                ent_list_head = tmp_list_node;
+                adj_list_node_free(ent_list_head, 0);
+                adj_list_node_insert(&ent_list_head, curr->name);
                 curr_max_size = curr->size;
             }
             curr = curr->next_list;
         }
         adj_list_node_print(ent_list_head);
         printf(" %d;", curr_max_size);
-        adj_list_node_free(ent_list_head);
+        adj_list_node_free(ent_list_head, 0);
         
-        rb_visit_inorder(rb_root->right);
+        print_report(rb_root->right);
     }
 }
 
@@ -577,7 +664,8 @@ void adj_list_node_insert(struct adj_list_node **head, char *id_ent)
 {
     struct adj_list_node *new_node = malloc(sizeof(struct adj_list_node));
     new_node->id_ent = id_ent;
-    new_node->next = *head; // TODO: sostituibile con = NULL?
+    new_node->prev = NULL;
+    new_node->next = *head;
     *head = new_node;
 }
 
@@ -590,8 +678,9 @@ void adj_list_node_insert_inorder(struct adj_list_node **head, char *id_ent)
     new_node = malloc(sizeof(struct adj_list_node));
     new_node->id_ent = id_ent;
 
-    /* Caso speciale se la testa è subito l'elemento più grande */
-    if (strcmp((*head)->id_ent, id_ent) >= 0) {
+    /* Caso speciale se la testa è subito l'elemento più grande o se la lista è vuota */
+    if (*head == NULL || strcmp((*head)->id_ent, id_ent) >= 0) {
+        new_node->prev = NULL;
         new_node->next = *head;
         *head = new_node;
         return;
@@ -601,8 +690,10 @@ void adj_list_node_insert_inorder(struct adj_list_node **head, char *id_ent)
         prev = curr;
         curr = curr->next;
     }
+    new_node->prev = prev;
     new_node->next = curr;
     prev->next = new_node;
+    curr->prev = new_node;
 }
 
 void adj_list_node_print(struct adj_list_node *head)
@@ -624,12 +715,49 @@ struct adj_list_node *adj_list_node_search(struct adj_list_node **head, char *id
     return curr;
 }
 
-void adj_list_node_free(struct adj_list_node *head)
+void adj_list_node_delete(struct adj_list_node **head, struct adj_list_node *node)
+{
+    if (*head == NULL || node == NULL)
+        return;
+    
+    if (*head == node) {
+        *head = node->next;
+    } else {
+        node->prev->next = node->next;
+        node->next->prev = node->prev;
+    }
+    free(node);
+}
+
+void graph_free(struct graph *grp)
+{
+    if (grp != NULL) {
+        adj_list_free(grp->adj_list_ent);
+        free(grp);
+    }
+}
+
+void adj_list_free(struct adj_list *head)
+{
+    struct adj_list *curr;
+    while (head != NULL) {
+        curr = head;
+        adj_list_node_free(curr->node, 1);
+        head = head->next_list;
+        free(curr->name);
+        free(curr);
+    }
+}
+
+void adj_list_node_free(struct adj_list_node *head, int clear_id_ent)
 {
     struct adj_list_node *curr;
     while (head != NULL) {
         curr = head;
         head = head->next;
+        if (clear_id_ent == 1) {
+            free(curr->id_ent);
+        }
         free(curr);
     }
 }
