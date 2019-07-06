@@ -40,6 +40,7 @@ struct rb_node {
 
 struct rb_node m;
 struct rb_node *t_nil = &m;
+int first_print = 1;
 
 void addent(struct rb_node **rb_root, char **id_ent);
 void delent(struct rb_node **rb_root, char *id_ent);
@@ -149,13 +150,20 @@ void addent(struct rb_node **rb_root, char **id_ent)
     }
 }
 
-void delent(struct rb_node **rb_root, char *id_ent)
+void delent(struct rb_node **ent_rb_root, struct rb_node **rel_rb_root, char *id_ent)
 {
-    struct rb_node *node_ent;
+    struct rb_node *node_tmp;
     
-    node_ent = rb_search(rb_root, id_ent);
-    rb_delete(rb_root, node_ent);
-    free(node_ent);
+    node_tmp = rb_search(ent_rb_root, id_ent);
+    rb_delete(ent_rb_root, node_tmp);
+    free(node_tmp);
+    
+    
+    /*
+     * TODO: visito tutto l'albero delle relazioni per cercare se ne esistono.
+     * Quando trovo una relazione con l'entità cercata, cancello l'entità dalla
+     * lista delle relazioni. Se era l'unica relazione esistente, cancello anche
+     * la relazione dall'albero delle relazioni.
 }
 
 /*
@@ -269,6 +277,7 @@ void report(struct rb_node **rb_root)
     } else {
         rb_visit_inorder(*rb_root);
         printf("\n");
+        first_print = 1;
     }
 }
 
@@ -518,34 +527,37 @@ void rb_free(struct rb_node **rb_root)
 
 void rb_visit_inorder(struct rb_node *rb_root)
 {
-    unsigned int curr_max_size;
+    unsigned int curr_max_size = 0;
+    struct adj_list *curr = NULL;
     struct adj_list_node *ent_list_head = NULL;
-    struct adj_list_node *tmp_list_node;
-    
-    curr_max_size = 0;
-    
+    struct adj_list_node *tmp_list_node = NULL;
+        
     if (rb_root != t_nil) {
+        curr = rb_root->ent_graph->adj_list_ent;
         rb_visit_inorder(rb_root->left);
         
-        printf("%s", rb_root->key);
-        while (rb_root->ent_graph->adj_list_ent != NULL) {
-            if (rb_root->ent_graph->adj_list_ent->size == curr_max_size) {
-                adj_list_node_insert_inorder(&ent_list_head, rb_root->ent_graph->adj_list_ent->name);
-                printf("\nAAAAAAAAAAAAAAAA\n");
-                adj_list_node_print(ent_list_head);
-                printf("\nBBBBBBBBBBBBBBBBB\n");
-            } else if (rb_root->ent_graph->adj_list_ent->size > curr_max_size) {
+        if (first_print == 1) {
+            printf("%s", rb_root->key);
+            first_print = 0;
+        } else {
+            printf(" %s", rb_root->key);
+        }
+        
+        while (curr != NULL) {
+            if (curr->size == curr_max_size) {
+                adj_list_node_insert_inorder(&ent_list_head, curr->name);
+            } else if (curr->size > curr_max_size) {
                 adj_list_node_free(ent_list_head);
                 tmp_list_node = malloc(sizeof(struct adj_list_node));
-                tmp_list_node->id_ent = rb_root->ent_graph->adj_list_ent->name;
+                tmp_list_node->id_ent = curr->name;
                 tmp_list_node->next = NULL;
                 ent_list_head = tmp_list_node;
-                curr_max_size = rb_root->ent_graph->adj_list_ent->size;
+                curr_max_size = curr->size;
             }
-            rb_root->ent_graph->adj_list_ent = rb_root->ent_graph->adj_list_ent->next_list;
+            curr = curr->next_list;
         }
         adj_list_node_print(ent_list_head);
-        printf(" %d; ", curr_max_size);
+        printf(" %d;", curr_max_size);
         adj_list_node_free(ent_list_head);
         
         rb_visit_inorder(rb_root->right);
@@ -576,12 +588,19 @@ void adj_list_node_insert_inorder(struct adj_list_node **head, char *id_ent)
     prev = *head;
     curr = (*head)->next;
     new_node = malloc(sizeof(struct adj_list_node));
+    new_node->id_ent = id_ent;
+
+    /* Caso speciale se la testa è subito l'elemento più grande */
+    if (strcmp((*head)->id_ent, id_ent) >= 0) {
+        new_node->next = *head;
+        *head = new_node;
+        return;
+    }
     
     while (curr != NULL && strcmp(curr->id_ent, id_ent) < 0) {
         prev = curr;
         curr = curr->next;
     }
-    new_node->id_ent = id_ent;
     new_node->next = curr;
     prev->next = new_node;
 }
