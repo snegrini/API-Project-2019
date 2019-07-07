@@ -161,7 +161,7 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
     if (node_rel == t_nil) {
         /*
          * TODO: controllare che i puntatori siano corretti e le modifiche
-         * ad un puntatore vengano propagate al di fuori di questa funzione
+         * ad un puntatore vengano propagate al di fuori di questa funzione.
          */
         node_rel = rb_create_insert_node(rb_root, id_rel)
         
@@ -174,7 +174,7 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
          * Cerco se è già presente rb_dest dell'entità id_dest,
          * altrimenti la creo.
          */
-        free(*id_rel); /* Non viene utilizzato se la relazione esiste già. */
+        free(id_rel); /* Non viene utilizzato se la relazione esiste già. */
         node_ent = rb_search(&node_rel->nested, id_dest);
         
         if (node_ent == t_nil) {      
