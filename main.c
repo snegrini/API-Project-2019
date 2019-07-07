@@ -53,6 +53,8 @@ void rb_free(struct rb_node *rb_root);
 unsigned int rb_count_nodes(struct rb_node *rb_root);
 void print_report(struct rb_node *rb_root);
 void rb_visit_nested_inorder(struct rb_node *rb_root);
+void rb_delete_ent_from_rel(struct rb_node **rel_rb_root, struct rb_node **curr_rb_root, char *id_ent);
+void rb_delete_ent_from_rel_nested(struct rb_node **rb_root, char *id_ent);
 
 /* 
  * List functions
@@ -107,7 +109,11 @@ int main(int argc, char *argv[])
             /* Verifico che le entità della relazione siano monitorate. */           
             if (rb_search(&ent_rb_root, id_orig) != t_nil && rb_search(&ent_rb_root, id_dest) != t_nil) {
                 addrel(&rel_rb_root, id_orig, id_dest, id_rel);
-            }            
+            } else {
+                free(id_orig);
+                free(id_dest);
+                free(id_rel);
+            }         
         } else if (strncmp(command, "delrel", 7) == 0) {
             id_orig = malloc(sizeof(char) * len);
             id_dest = malloc(sizeof(char) * len);
@@ -151,7 +157,17 @@ void delent(struct rb_node **ent_rb_root, struct rb_node **rel_rb_root, char *id
     free(node_tmp);
     
     if (*rel_rb_root != t_nil) {
-        //rb_delete_id_ent(rel_rb_root, rel_rb_root, id_ent);
+        /* 
+         * Cerco l'entità nell'albero rb_dest, se la trovo la elimino ed
+         * elimino anche l'albero rb_orig associato.
+         */
+        node_tmp = rb_search(&(*rel_rb_root)->nested, id_ent);
+        rb_delete(&(*rel_rb_root)->nested, node_tmp);
+        rb_free(node_tmp->nested);
+        free(node_tmp->key);
+        free(node_tmp);
+        
+        rb_delete_ent_from_rel(rel_rb_root, rel_rb_root, id_ent);
     }
     free(id_ent);
 }
@@ -166,10 +182,6 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
     node_rel = rb_search(rb_root, id_rel);
     
     if (node_rel == t_nil) {
-        /*
-         * TODO: controllare che i puntatori siano corretti e le modifiche
-         * ad un puntatore vengano propagate al di fuori di questa funzione.
-         */
         node_rel = rb_create_insert_node(rb_root, id_rel);
         
         /* La relazione prima non esisteva. Sicuramente devo creare rb_dest e rb_orig */
@@ -213,10 +225,13 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
 
 void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel)
 {
-    struct rb_node *tmp_rb_node;
-    tmp_rb_node = rb_search(rb_root, id_rel);
-    if (tmp_rb_node != t_nil) {
-        //rb_delete_rel_ent(rb_root, tmp_rb_node, id_orig, id_dest);
+    struct rb_node *node_rel, *node_dest, *node_orig;
+    node_rel = rb_search(rb_root, id_rel);
+    if (node_rel != t_nil) {
+        node_dest = rb_search(&node_rel, id_dest);
+        node_orig = rb_search(&node_dest->nested, id_orig);
+        rb_delete(rb_root, node_orig);
+        free(node_orig);
     }
 }
 
@@ -534,6 +549,41 @@ void rb_visit_nested_inorder(struct rb_node *rb_root)
         }
         
         rb_visit_nested_inorder(rb_root->left);
+    }
+}
+
+void rb_delete_ent_from_rel(struct rb_node **rel_rb_root, struct rb_node **curr_rb_root, char *id_ent)
+{
+    if (*curr_rb_root != t_nil) {
+        rb_delete_ent_from_rel(rel_rb_root, &(*curr_rb_root)->left, id_ent);
+        
+        rb_delete_ent_from_rel_nested(&(*curr_rb_root)->nested, id_ent);
+        /* Se l'albero rb_orig è vuoto, elimino il nodo di rb_dest */
+        if ((*curr_rb_root)->nested->nested == t_nil) {
+            //rb_delete(&(*curr_rb_root)->nested, (*curr_rb_root)->nested);
+            
+            /* Se l'albero rb_dest è vuoto, elimino il nodo della relazione */
+            if ((*rel_rb_root)->nested == t_nil) {
+                rb_delete(rel_rb_root, *curr_rb_root);
+            }
+        }
+        rb_delete_ent_from_rel(rel_rb_root, &(*curr_rb_root)->right, id_ent);
+    }
+}
+
+void rb_delete_ent_from_rel_nested(struct rb_node **rb_root, char *id_ent)
+{
+    struct rb_node *node_tmp;
+    if (*rb_root != t_nil) {
+        rb_delete_ent_from_rel_nested(&(*rb_root)->left, id_ent);
+        
+        /* Cerco l'entità nell'albero rb_orig, se la trovo la elimino */
+        node_tmp = rb_search(&(*rb_root)->nested, id_ent);
+        rb_delete(&(*rb_root)->nested, node_tmp);
+        free(node_tmp->key);
+        free(node_tmp);
+
+        rb_delete_ent_from_rel_nested(&(*rb_root)->left, id_ent);
     }
 }
 
