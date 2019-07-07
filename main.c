@@ -482,7 +482,7 @@ unsigned int rb_count_nodes(struct rb_node *rb_root)
 {
     if (rb_root == t_nil)
         return 0;
-    return 1 + count_nodes(rb_root->left) + count_nodes(rb_root->right);
+    return 1 + rb_count_nodes(rb_root->left) + rb_count_nodes(rb_root->right);
 }
 
 void print_report(struct rb_node *rb_root)
