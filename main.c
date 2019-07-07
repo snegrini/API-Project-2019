@@ -21,11 +21,16 @@ struct list_node {
     struct list_node *next;
 };
 
+/*
+ * Global variables
+ */
 struct rb_node m;
 struct rb_node *t_nil = &m;
 int first_print = 1;
+struct list_node *ent_list_head = NULL;
+unsigned int max_size = 0;
 
-void addent(struct rb_node **rb_root, char **id_ent);
+void addent(struct rb_node **rb_root, char *id_ent);
 void delent(struct rb_node **ent_rb_root, struct rb_node **rel_rb_root, char *id_ent);
 void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel);
 void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel);
@@ -47,12 +52,14 @@ struct rb_node *rb_create_insert_node(struct rb_node **rb_root, char *id_ent);
 void rb_free(struct rb_node *rb_root);
 unsigned int rb_count_nodes(struct rb_node *rb_root);
 void print_report(struct rb_node *rb_root);
+void rb_visit_nested_inorder(struct rb_node *rb_root);
 
 /* 
  * List functions
  */
 void list_node_insert(struct list_node **head, char *id_ent);
-void list_node_free(struct list_node *head, int clear_id_ent);
+void list_node_free(struct list_node **head, int clear_id_ent);
+void list_node_print(struct list_node *head);
 
 /*
  * Input functions
@@ -76,6 +83,8 @@ int main(int argc, char *argv[])
         
     ent_rb_root = t_nil;
     rel_rb_root = t_nil;
+    rel_rb_root->nested = t_nil;
+    rel_rb_root->nested->nested = t_nil;
     
     do {
         len = readLine(&line);
@@ -113,8 +122,6 @@ int main(int argc, char *argv[])
     free(line);
 
     rb_free(ent_rb_root);
-    rb_free(rel_rb_root->nested->nested);
-    rb_free(rel_rb_root->nested);
     rb_free(rel_rb_root);
 
     return 0;
@@ -125,7 +132,7 @@ void addent(struct rb_node **rb_root, char *id_ent)
     struct rb_node *new_node_ent;
     new_node_ent = malloc(sizeof(struct rb_node));
     new_node_ent->key = id_ent;
-    new_node_ent->nested = NULL;
+    new_node_ent->nested = t_nil;
     
     if (rb_insert(rb_root, new_node_ent) == 0) {
         /* Nessun inserimento, key già presente */
@@ -144,7 +151,7 @@ void delent(struct rb_node **ent_rb_root, struct rb_node **rel_rb_root, char *id
     free(node_tmp);
     
     if (*rel_rb_root != t_nil) {
-        rb_delete_id_ent(rel_rb_root, rel_rb_root, id_ent);
+        //rb_delete_id_ent(rel_rb_root, rel_rb_root, id_ent);
     }
     free(id_ent);
 }
@@ -156,18 +163,18 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
 {
     struct rb_node *node_rel;
     struct rb_node *node_ent;
-    node_rel = rb_search(rb_root, *id_rel);
+    node_rel = rb_search(rb_root, id_rel);
     
     if (node_rel == t_nil) {
         /*
          * TODO: controllare che i puntatori siano corretti e le modifiche
          * ad un puntatore vengano propagate al di fuori di questa funzione.
          */
-        node_rel = rb_create_insert_node(rb_root, id_rel)
+        node_rel = rb_create_insert_node(rb_root, id_rel);
         
         /* La relazione prima non esisteva. Sicuramente devo creare rb_dest e rb_orig */
-        rb_create_insert_node(node_rel->nested, id_dest);
-        rb_create_insert_node(node_rel->nested->nested, id_orig);
+        rb_create_insert_node(&node_rel->nested, id_dest);
+        rb_create_insert_node(&node_rel->nested->nested, id_orig);
     } else {
         /* 
          * La relazione esiste.
@@ -181,12 +188,12 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
             /* 
              * Inserisco nuovo nodo per l'entità id_dest.
              */
-            rb_create_insert_node(node_rel->nested, id_dest);
+            node_ent = rb_create_insert_node(&node_rel->nested, id_dest);
             /* 
              * Non essendoci rb_dest, non sarà presente neanche il nodo in rb_orig,
              * che va quindi creato.
              */
-            rb_create_insert_node(node_rel->nested->nested, id_orig);
+            rb_create_insert_node(&node_ent->nested, id_orig);
         } else {
             /*
              * Cerco, se esiste, il nodo dell'entità id_orig.
@@ -194,8 +201,7 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
              * Se esiste, libero lo spazio della stringa id_orig e non faccio altro.
              */
             free(id_dest); /* Il nodo rb_dest esiste già, non serve più */
-            node_ent = rb_search(&node_ent->nested, id_orig);
-            if (node_ent == t_nil) {
+            if (rb_search(&node_ent->nested, id_orig) == t_nil) {
                 rb_create_insert_node(&node_ent->nested, id_orig);
             } else {
                 free(id_orig);
@@ -210,7 +216,7 @@ void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
     struct rb_node *tmp_rb_node;
     tmp_rb_node = rb_search(rb_root, id_rel);
     if (tmp_rb_node != t_nil) {
-        rb_delete_rel_ent(rb_root, tmp_rb_node, id_orig, id_dest);
+        //rb_delete_rel_ent(rb_root, tmp_rb_node, id_orig, id_dest);
     }
 }
 
@@ -462,6 +468,7 @@ struct rb_node *rb_create_insert_node(struct rb_node **rb_root, char *id_ent)
 {
     struct rb_node *node_ent = malloc(sizeof(struct rb_node));
     node_ent->key = id_ent;
+    node_ent->nested = t_nil;
     rb_insert(rb_root, node_ent);
     return node_ent;
 }
@@ -470,9 +477,10 @@ void rb_free(struct rb_node *rb_root)
 {
     if (rb_root == t_nil)
         return;
-
+    
     rb_free(rb_root->left);
     rb_free(rb_root->right);
+    rb_free(rb_root->nested);
 
     free(rb_root->key);
     free(rb_root);
@@ -486,13 +494,8 @@ unsigned int rb_count_nodes(struct rb_node *rb_root)
 }
 
 void print_report(struct rb_node *rb_root)
-{
-    unsigned int curr_size = 0;
-    unsigned int max_size  = 0;
-    struct adj_list_node *ent_list_head = NULL;
-        
+{        
     if (rb_root != t_nil) {
-        curr = rb_root->ent_graph->adj_list_ent;
         print_report(rb_root->left);
         
         if (first_print == 1) {
@@ -502,22 +505,34 @@ void print_report(struct rb_node *rb_root)
             printf(" %s", rb_root->key);
         }
         
-        while (curr != NULL) {
-            curr_size = rb_count_nodes(curr);
-            if ( == max_size) {
-                list_node_insert(&ent_list_head, curr->name);
-            } else if (curr->size > curr_max_size) {
-                list_node_free(ent_list_head, 0);
-                list_node_insert(&ent_list_head, curr->name);
-                curr_max_size = curr->size;
-            }
-            curr = curr->next_list;
-        }
-        adj_list_node_print(ent_list_head);
-        printf(" %d;", curr_max_size);
-        adj_list_node_free(ent_list_head, 0);
+        rb_visit_nested_inorder(rb_root->nested);
+            
+        list_node_print(ent_list_head);
+        printf(" %d;", max_size);
+        list_node_free(&ent_list_head, 0);
         
         print_report(rb_root->right);
+    }
+}
+
+void rb_visit_nested_inorder(struct rb_node *rb_root)
+{
+    unsigned int curr_size = 0;
+    
+    if (rb_root != t_nil) {
+        rb_visit_nested_inorder(rb_root->right);
+        
+        curr_size = rb_count_nodes(rb_root->nested);
+        /* Se ho un nuovo max_size, azzero la lista */
+        if (curr_size == max_size) {
+            list_node_insert(&ent_list_head, rb_root->key);
+        } else if (curr_size > max_size) {
+            list_node_free(&ent_list_head, 0);
+            list_node_insert(&ent_list_head, rb_root->key);
+            max_size = curr_size;
+        }
+        
+        rb_visit_nested_inorder(rb_root->left);
     }
 }
 
@@ -529,16 +544,25 @@ void list_node_insert(struct list_node **head, char *id_ent)
     *head = new_node;
 }
 
-void list_node_free(struct list_node *head, int clear_id_ent)
+void list_node_free(struct list_node **head, int clear_id_ent)
 {
     struct list_node *curr;
-    while (head != NULL) {
-        curr = head;
-        head = head->next;
+    while (*head != NULL) {
+        curr = *head;
+        *head = (*head)->next;
         if (clear_id_ent == 1) {
             free(curr->id_ent);
         }
         free(curr);
+    }
+}
+
+void list_node_print(struct list_node *head)
+{
+    struct list_node *curr = head;
+    while (curr != NULL) {
+        printf(" %s", curr->id_ent);
+        curr = curr->next;
     }
 }
 
