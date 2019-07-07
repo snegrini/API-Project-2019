@@ -510,6 +510,7 @@ void print_report(struct rb_node *rb_root)
         list_node_print(ent_list_head);
         printf(" %d;", max_size);
         list_node_free(&ent_list_head, 0);
+        max_size = 0;
         
         print_report(rb_root->right);
     }
