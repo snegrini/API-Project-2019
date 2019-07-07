@@ -111,12 +111,12 @@ int main(int argc, char *argv[])
     } while (strncmp(command, "end", 4) != 0);
     
     free(line);
-    
+
     rb_free(ent_rb_root);
-    rb_free(rel_rb_root);
-    rb_free(rel_rb_root->nested);
     rb_free(rel_rb_root->nested->nested);
-    
+    rb_free(rel_rb_root->nested);
+    rb_free(rel_rb_root);
+
     return 0;
 }
 
