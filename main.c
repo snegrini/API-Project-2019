@@ -70,7 +70,7 @@ int readLine(char **str);
 
 int main(int argc, char *argv[])
 {
-    char *line = malloc(sizeof(char) * (DEFAULT_STRING_LENGTH + 1));
+    char *line = NULL;
     
     char command[8];    
     char *id_ent  = NULL;
@@ -89,6 +89,7 @@ int main(int argc, char *argv[])
     rel_rb_root->nested->nested = t_nil;
     
     do {
+        line = malloc(sizeof(char) * (DEFAULT_STRING_LENGTH + 1));
         len = readLine(&line);
         sscanf(line, "%7s", command);
                 
@@ -123,10 +124,9 @@ int main(int argc, char *argv[])
         } else if (strncmp(command, "report", 7) == 0) {
             report(rel_rb_root);
         }
+        free(line);
     } while (strncmp(command, "end", 4) != 0);
     
-    free(line);
-
     rb_free(ent_rb_root);
     rb_free(rel_rb_root);
 
@@ -277,14 +277,14 @@ int rb_insert(struct rb_node **rb_root, struct rb_node *new)
     return 1;
 }
 
-void rb_insert_fixup(struct rb_node **rb_root, struct rb_node *new)
+void rb_insert_fixup(struct rb_node **rb_root, struct rb_node *z)
 {
     struct rb_node *x, *y;
     
-    if (new == *rb_root) {
+    if (z == *rb_root) {
         (*rb_root)->color = BLACK;
     } else {
-        x = new->parent;
+        x = z->parent;
         if (x->color == RED) {
             if (x == x->parent->left) {
                 y = x->parent->right;
@@ -294,10 +294,10 @@ void rb_insert_fixup(struct rb_node **rb_root, struct rb_node *new)
                     x->parent->color = RED;
                     rb_insert_fixup(rb_root, x->parent);
                 } else {
-                    if (new == x->right) {
-                        new = x;
-                        rotate_left(rb_root, new);
-                        x = new->parent;
+                    if (z == x->right) {
+                        z = x;
+                        rotate_left(rb_root, z);
+                        x = z->parent;
                     }
                     x->color = BLACK;
                     x->parent->color = RED;
@@ -311,10 +311,10 @@ void rb_insert_fixup(struct rb_node **rb_root, struct rb_node *new)
                     x->parent->color = RED;
                     rb_insert_fixup(rb_root, x->parent);
                 } else {
-                    if (new == x->left) {
-                        new = x;
-                        rotate_right(rb_root, new);
-                        x = new->parent;
+                    if (z == x->left) {
+                        z = x;
+                        rotate_right(rb_root, z);
+                        x = z->parent;
                     }
                     x->color = BLACK;
                     x->parent->color = RED;
