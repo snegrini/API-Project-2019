@@ -49,7 +49,7 @@ void rotate_right(struct rb_node **rb_root, struct rb_node *x);
 struct rb_node *tree_minimum(struct rb_node *node);
 struct rb_node *tree_successor(struct rb_node *node);
 struct rb_node *rb_create_insert_node(struct rb_node **rb_root, char *id_ent);
-void rb_free(struct rb_node *rb_root);
+void rb_free(struct rb_node **rb_root);
 unsigned int rb_count_nodes(struct rb_node *rb_root);
 void print_report(struct rb_node *rb_root);
 void rb_visit_nested_inorder(struct rb_node *rb_root);
@@ -80,6 +80,8 @@ int main(int argc, char *argv[])
     
     int len;
     
+    t_nil->color = BLACK;
+    
     struct rb_node *ent_rb_root; /* Store all entities before relations are created. */
     struct rb_node *rel_rb_root;
         
@@ -92,6 +94,7 @@ int main(int argc, char *argv[])
         line = malloc(sizeof(char) * (DEFAULT_STRING_LENGTH + 1));
         len = readLine(&line);
         sscanf(line, "%7s", command);
+        //printf("%d\n", len);
                 
         if (strncmp(command, "addent", 7) == 0) {
             id_ent = malloc(sizeof(char) * len);
@@ -127,8 +130,8 @@ int main(int argc, char *argv[])
         free(line);
     } while (strncmp(command, "end", 4) != 0);
     
-    rb_free(ent_rb_root);
-    rb_free(rel_rb_root);
+    rb_free(&ent_rb_root);
+    rb_free(&rel_rb_root);
 
     return 0;
 }
@@ -483,17 +486,19 @@ struct rb_node *rb_create_insert_node(struct rb_node **rb_root, char *id_ent)
     return node_ent;
 }
 
-void rb_free(struct rb_node *rb_root)
+void rb_free(struct rb_node **rb_root)
 {
-    if (rb_root == t_nil)
+    if (*rb_root == t_nil)
         return;
     
-    rb_free(rb_root->nested);
-    rb_free(rb_root->left);
-    rb_free(rb_root->right);
+    rb_free(&(*rb_root)->left);
+    rb_free(&(*rb_root)->right);
+    if ((*rb_root)->nested != t_nil)
+        rb_free(&(*rb_root)->nested);
 
-    free(rb_root->key);
-    free(rb_root);
+    free((*rb_root)->key);
+    free(*rb_root);
+    *rb_root = t_nil;
 }
 
 unsigned int rb_count_nodes(struct rb_node *rb_root)
@@ -561,7 +566,7 @@ void rb_delete_ent_from_rel(struct rb_node **rel_rb_root, struct rb_node **curr_
         node_tmp = rb_search(&(*curr_rb_root)->nested, id_ent);
         if (node_tmp != t_nil) {
             node_tmp = rb_delete(&(*curr_rb_root)->nested, node_tmp);
-            rb_free(node_tmp->nested);
+            rb_free(&node_tmp->nested);
             free(node_tmp->key);
             free(node_tmp);
         }
