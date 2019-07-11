@@ -49,12 +49,12 @@ void rotate_right(struct rb_node **rb_root, struct rb_node *x);
 struct rb_node *tree_minimum(struct rb_node *node);
 struct rb_node *tree_successor(struct rb_node *node);
 struct rb_node *rb_create_insert_node(struct rb_node **rb_root, char *id_ent);
-void rb_free(struct rb_node **rb_root);
+void rb_free(struct rb_node **rb_root, int clear_id_ent);
 unsigned int rb_count_nodes(struct rb_node *rb_root);
 void print_report(struct rb_node *rb_root);
 void rb_visit_nested_inorder(struct rb_node *rb_root);
 void rb_delete_ent_from_rel(struct rb_node **rel_rb_root, struct rb_node **curr_rb_root, char *id_ent);
-void rb_delete_ent_from_rel_nested(struct rb_node **rb_root, char *id_ent);
+void rb_delete_ent_from_rel_nested(struct rb_node **dest_rb_root, struct rb_node **curr_rb_root, char *id_ent);
 void rb_print_tree(struct rb_node *rb_root);
 
 /* 
@@ -132,8 +132,8 @@ int main(int argc, char *argv[])
         free(line);
     } while (strncmp(command, "end", 4) != 0);
     
-    rb_free(&ent_rb_root);
-    rb_free(&rel_rb_root);
+    rb_free(&ent_rb_root, 1);
+    rb_free(&rel_rb_root, 1);
 
     return 0;
 }
@@ -158,8 +158,7 @@ void delent(struct rb_node **ent_rb_root, struct rb_node **rel_rb_root, char *id
     
     node_tmp = rb_search(ent_rb_root, id_ent);
     if (node_tmp != t_nil) {
-        rb_delete(ent_rb_root, node_tmp);
-        free(node_tmp->key);
+        node_tmp = rb_delete(ent_rb_root, node_tmp);
         free(node_tmp);
     }
     
@@ -226,8 +225,7 @@ void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
     if (node_rel != t_nil) {
         node_dest = rb_search(&node_rel, id_dest);
         node_orig = rb_search(&node_dest->nested, id_orig);
-        rb_delete(rb_root, node_orig);
-        free(node_orig->key);
+        node_orig = rb_delete(rb_root, node_orig);
         free(node_orig);
     }
     free(id_orig);
@@ -352,8 +350,12 @@ struct rb_node *rb_delete(struct rb_node **rb_root, struct rb_node *node)
     else
         y->parent->right = x;
     
-    if (y != node)
+    if (y != node) {
+        free(node->key);
+        rb_free(&node->nested, 0);
         node->key = y->key;
+        node->nested = y->nested;
+    }
     if (y->color == BLACK)
         rb_delete_fixup(rb_root, x);
     return y;
@@ -489,17 +491,18 @@ struct rb_node *rb_create_insert_node(struct rb_node **rb_root, char *id_ent)
     return node_ent;
 }
 
-void rb_free(struct rb_node **rb_root)
+void rb_free(struct rb_node **rb_root, int clear_id_ent)
 {
     if (*rb_root == t_nil)
         return;
     
-    rb_free(&(*rb_root)->left);
-    rb_free(&(*rb_root)->right);
+    rb_free(&(*rb_root)->left, clear_id_ent);
+    rb_free(&(*rb_root)->right, clear_id_ent);
     if ((*rb_root)->nested != t_nil)
-        rb_free(&(*rb_root)->nested);
+        rb_free(&(*rb_root)->nested, clear_id_ent);
 
-    free((*rb_root)->key);
+    if (clear_id_ent == 1)
+        free((*rb_root)->key);
     free(*rb_root);
     *rb_root = t_nil;
 }
@@ -555,13 +558,15 @@ void rb_visit_nested_inorder(struct rb_node *rb_root)
     }
 }
 
-void rb_delete_ent_from_rel(struct rb_node **rel_rb_root, struct rb_node **curr_rb_root, char *id_ent)
+void rb_delete_ent_from_rel(struct rb_node **rel_rb_root,
+                            struct rb_node **curr_rb_root, char *id_ent)
 {
     struct rb_node *node_tmp;
 
     if (*curr_rb_root != t_nil) {
         rb_delete_ent_from_rel(rel_rb_root, &(*curr_rb_root)->left, id_ent);
-        
+        rb_delete_ent_from_rel(rel_rb_root, &(*curr_rb_root)->right, id_ent);
+
         /* 
          * Cerco l'entità nell'albero rb_dest di ogni relazione,
          * se la trovo la elimino ed elimino anche l'albero rb_orig associato.
@@ -569,45 +574,37 @@ void rb_delete_ent_from_rel(struct rb_node **rel_rb_root, struct rb_node **curr_
         node_tmp = rb_search(&(*curr_rb_root)->nested, id_ent);
         if (node_tmp != t_nil) {
             node_tmp = rb_delete(&(*curr_rb_root)->nested, node_tmp);
-            rb_free(&node_tmp->nested);
-            free(node_tmp->key);
             free(node_tmp);
         } else {
-            rb_delete_ent_from_rel_nested(&(*curr_rb_root)->nested, id_ent);
+            rb_delete_ent_from_rel_nested(&(*curr_rb_root)->nested, &(*curr_rb_root)->nested, id_ent);
         }
 
         /* Se l'albero rb_dest è vuoto, elimino il nodo della relazione */
         if ((*curr_rb_root)->nested == t_nil) {
             node_tmp = rb_delete(rel_rb_root, *curr_rb_root);
-            free(node_tmp->key);
             free(node_tmp);
-            return;
         }
-        rb_delete_ent_from_rel(rel_rb_root, &(*curr_rb_root)->right, id_ent);
     }
 }
 
-void rb_delete_ent_from_rel_nested(struct rb_node **rb_root, char *id_ent)
+void rb_delete_ent_from_rel_nested(struct rb_node **dest_rb_root, 
+                                   struct rb_node **curr_rb_root, char *id_ent)
 {
     struct rb_node *node_tmp;
-    if (*rb_root != t_nil) {
-        rb_delete_ent_from_rel_nested(&(*rb_root)->left, id_ent);
-        
+    if (*curr_rb_root != t_nil) {
+        rb_delete_ent_from_rel_nested(dest_rb_root, &(*curr_rb_root)->left, id_ent);
+        rb_delete_ent_from_rel_nested(dest_rb_root, &(*curr_rb_root)->right, id_ent);
+
         /* Cerco l'entità nell'albero rb_orig, se la trovo la elimino */
-        node_tmp = rb_search(&(*rb_root)->nested, id_ent);
-        rb_delete(&(*rb_root)->nested, node_tmp);
-        free(node_tmp->key);
+        node_tmp = rb_search(&(*curr_rb_root)->nested, id_ent);
+        node_tmp = rb_delete(&(*curr_rb_root)->nested, node_tmp);
         free(node_tmp);
         
         /* Se l'albero rb_orig è vuoto, elimino il nodo della relazione */
         if ((*curr_rb_root)->nested == t_nil) {
-            node_tmp = rb_delete(rel_rb_root, *curr_rb_root);
-            free(node_tmp->key);
+            node_tmp = rb_delete(dest_rb_root, *curr_rb_root);
             free(node_tmp);
-            return;
         }
-
-        rb_delete_ent_from_rel_nested(&(*rb_root)->left, id_ent);
     }
 }
 
