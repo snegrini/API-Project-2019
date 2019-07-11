@@ -158,6 +158,7 @@ void delent(struct rb_node **ent_rb_root, struct rb_node **rel_rb_root, char *id
     
     node_tmp = rb_search(ent_rb_root, id_ent);
     if (node_tmp != t_nil) {
+        free(node_tmp->key);
         node_tmp = rb_delete(ent_rb_root, node_tmp);
         free(node_tmp);
     }
@@ -225,6 +226,7 @@ void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
     if (node_rel != t_nil) {
         node_dest = rb_search(&node_rel, id_dest);
         node_orig = rb_search(&node_dest->nested, id_orig);
+        free(node_orig->key);
         node_orig = rb_delete(rb_root, node_orig);
         free(node_orig);
     }
@@ -351,8 +353,6 @@ struct rb_node *rb_delete(struct rb_node **rb_root, struct rb_node *node)
         y->parent->right = x;
     
     if (y != node) {
-        free(node->key);
-        rb_free(&node->nested, 0);
         node->key = y->key;
         node->nested = y->nested;
     }
@@ -573,6 +573,8 @@ void rb_delete_ent_from_rel(struct rb_node **rel_rb_root,
          */
         node_tmp = rb_search(&(*curr_rb_root)->nested, id_ent);
         if (node_tmp != t_nil) {
+            free(node_tmp->key);
+            rb_free(&node_tmp->nested, 1);
             node_tmp = rb_delete(&(*curr_rb_root)->nested, node_tmp);
             free(node_tmp);
         } else {
@@ -581,6 +583,7 @@ void rb_delete_ent_from_rel(struct rb_node **rel_rb_root,
 
         /* Se l'albero rb_dest è vuoto, elimino il nodo della relazione */
         if ((*curr_rb_root)->nested == t_nil) {
+            free((*curr_rb_root)->key);
             node_tmp = rb_delete(rel_rb_root, *curr_rb_root);
             free(node_tmp);
         }
@@ -597,11 +600,13 @@ void rb_delete_ent_from_rel_nested(struct rb_node **dest_rb_root,
 
         /* Cerco l'entità nell'albero rb_orig, se la trovo la elimino */
         node_tmp = rb_search(&(*curr_rb_root)->nested, id_ent);
+        free(node_tmp->key);
         node_tmp = rb_delete(&(*curr_rb_root)->nested, node_tmp);
         free(node_tmp);
         
-        /* Se l'albero rb_orig è vuoto, elimino il nodo della relazione */
+        /* Se l'albero rb_orig è vuoto, elimino il nodo della entità destinazione */
         if ((*curr_rb_root)->nested == t_nil) {
+            free((*curr_rb_root)->key);
             node_tmp = rb_delete(dest_rb_root, *curr_rb_root);
             free(node_tmp);
         }
