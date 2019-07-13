@@ -586,9 +586,6 @@ void rb_delete_ent_from_rel(struct rb_node **rel_rb_root,
     struct rb_node *node_tmp;
 
     if (*curr_rb_root != t_nil) {
-        rb_delete_ent_from_rel(rel_rb_root, &(*curr_rb_root)->left, id_ent);
-        rb_delete_ent_from_rel(rel_rb_root, &(*curr_rb_root)->right, id_ent);
-
         /* 
          * Cerco l'entità nell'albero rb_dest di ogni relazione,
          * se la trovo la elimino ed elimino anche l'albero rb_orig associato.
@@ -602,13 +599,19 @@ void rb_delete_ent_from_rel(struct rb_node **rel_rb_root,
         }
         
         /* Cerco l'entità nell'albero rb_orig di ogni rb_dest */
-        rb_delete_ent_from_rel_nested(&(*curr_rb_root)->nested, &(*curr_rb_root)->nested, id_ent);
+        rb_delete_ent_from_rel_nested(&(*curr_rb_root)->nested,
+                                      &(*curr_rb_root)->nested, id_ent);
         
         /* Se l'albero rb_dest è vuoto, elimino il nodo della relazione */
         if ((*curr_rb_root)->nested == t_nil) {
             free((*curr_rb_root)->key);
             node_tmp = rb_delete(rel_rb_root, *curr_rb_root);
             free(node_tmp);
+        }
+        
+        if (*curr_rb_root != t_nil) {
+            rb_delete_ent_from_rel(rel_rb_root, &(*curr_rb_root)->left, id_ent);
+            rb_delete_ent_from_rel(rel_rb_root, &(*curr_rb_root)->right, id_ent);
         }
     }
 }
@@ -634,6 +637,11 @@ void rb_delete_ent_from_rel_nested(struct rb_node **dest_rb_root,
             free((*curr_rb_root)->key);
             node_tmp = rb_delete(dest_rb_root, *curr_rb_root);
             free(node_tmp);
+        }
+        
+        if (*curr_rb_root != t_nil) {
+            rb_delete_ent_from_rel_nested(dest_rb_root, &(*curr_rb_root)->left, id_ent);
+            rb_delete_ent_from_rel_nested(dest_rb_root, &(*curr_rb_root)->right, id_ent);
         }
     }
 }
