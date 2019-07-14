@@ -586,6 +586,8 @@ void rb_delete_ent_from_rel(struct rb_node **rel_rb_root,
     struct rb_node *node_tmp;
 
     if (*curr_rb_root != t_nil) {
+        rb_delete_ent_from_rel(rel_rb_root, &(*curr_rb_root)->left, id_ent);
+        rb_delete_ent_from_rel(rel_rb_root, &(*curr_rb_root)->right, id_ent);
         /* 
          * Cerco l'entità nell'albero rb_dest di ogni relazione,
          * se la trovo la elimino ed elimino anche l'albero rb_orig associato.
