@@ -256,12 +256,15 @@ void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
 void report(struct rb_node *rb_root)
 {
     if (rb_root == t_nil) {
-        printf("none\n");
+        printf("none");
     } else {
         print_report(rb_root);
-        printf("\n");
-        first_print = 1;
+        if (first_print == 1) {
+            printf("none");
+        }
     }
+    printf("\n");
+    first_print = 1;
 }
 
 /*
@@ -292,7 +295,7 @@ int rb_insert(struct rb_node **rb_root, struct rb_node *new)
         y->left = new;
     else
         y->right = new;
-    
+
     new->left  = t_nil;
     new->right = t_nil;
     new->color = RED;
@@ -361,7 +364,7 @@ struct rb_node *rb_delete(struct rb_node **rb_root, struct rb_node *node)
         x = y->left;
     else
         x = y->right;
-    
+
     x->parent = y->parent;
     if (y->parent == t_nil)
         *rb_root = x;
@@ -536,50 +539,51 @@ unsigned int rb_count_nodes(struct rb_node *rb_root)
 
 void print_report(struct rb_node *rb_root)
 {        
-    if (rb_root != t_nil) {
-        print_report(rb_root->left);
-             
-        rb_visit_nested_inorder(rb_root->nested);
-        
-        if (max_size != 0) {
-            if (first_print == 1) {
-                printf("%s", rb_root->key);
-                first_print = 0;
-            } else {
-                printf(" %s", rb_root->key);
-            }
-            
-            list_node_print(ent_list_head);
-            printf(" %d;", max_size);
-            list_node_free(&ent_list_head, 0);
-            max_size = 0;
+    if (rb_root == t_nil)
+        return;
+    
+    print_report(rb_root->left);
+    
+    rb_visit_nested_inorder(rb_root->nested);
+    
+    if (max_size != 0) {
+        if (first_print == 1) {
+            printf("%s", rb_root->key);
+            first_print = 0;
+        } else {
+            printf(" %s", rb_root->key);
         }
         
-        print_report(rb_root->right);
+        list_node_print(ent_list_head);
+        printf(" %d;", max_size);
+        list_node_free(&ent_list_head, 0);
+        max_size = 0;
     }
+    print_report(rb_root->right);
 }
 
 void rb_visit_nested_inorder(struct rb_node *rb_root)
 {
     unsigned int curr_size = 0;
     
-    if (rb_root != t_nil) {
-        rb_visit_nested_inorder(rb_root->right);
-        
-        curr_size = rb_count_nodes(rb_root->nested);
-        if (curr_size != 0) {
-            /* Se ho un nuovo max_size, azzero la lista */
-            if (curr_size == max_size) {
-                list_node_insert(&ent_list_head, rb_root->key);
-            } else if (curr_size > max_size) {
-                list_node_free(&ent_list_head, 0);
-                list_node_insert(&ent_list_head, rb_root->key);
-                max_size = curr_size;
-            }
+    if (rb_root == t_nil)
+        return;
+    
+    rb_visit_nested_inorder(rb_root->right);
+    
+    curr_size = rb_count_nodes(rb_root->nested);
+    if (curr_size != 0) {
+        /* Se ho un nuovo max_size, azzero la lista */
+        if (curr_size == max_size) {
+            list_node_insert(&ent_list_head, rb_root->key);
+        } else if (curr_size > max_size) {
+            list_node_free(&ent_list_head, 0);
+            list_node_insert(&ent_list_head, rb_root->key);
+            max_size = curr_size;
         }
-        
-        rb_visit_nested_inorder(rb_root->left);
     }
+    
+    rb_visit_nested_inorder(rb_root->left);
 }
 
 void rb_delete_ent_from_rel(struct rb_node **rel_rb_root,
