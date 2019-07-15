@@ -1,6 +1,7 @@
-for file in /home/snegrini/Downloads/test/i/*
+mkdir output
+for file in tests/others/i/*
 do
   filename="${file##*/}"
   echo $file
-  cat $file | ./main > /home/snegrini/Projects/API_Project-2019/output/$filename.out
+  cat $file | ./main > output/$filename.out
 done 

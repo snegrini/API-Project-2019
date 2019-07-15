@@ -1,7 +1,6 @@
-for file in /home/snegrini/Downloads/test/o/*
+for file in tests/others/o/*
 do
   filename="${file##*/}"
   echo $filename.out
-  #echo $file
-  diff $file /home/snegrini/Projects/API_Project-2019/output/$filename.out
+  diff $file output/$filename.out
 done 
