@@ -9,6 +9,7 @@
 
 struct rb_node {
     char *key;
+    unsigned int size;
     int color;
     struct rb_node *nested;
     struct rb_node *parent;
@@ -181,7 +182,8 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
         node_rel = rb_create_insert_node(rb_root, id_rel);
         
         /* La relazione prima non esisteva. Sicuramente devo creare rb_dest e rb_orig */
-        rb_create_insert_node(&node_rel->nested, id_dest);
+        node_ent = rb_create_insert_node(&node_rel->nested, id_dest);
+        node_ent->size = node_ent->size + 1;
         rb_create_insert_node(&node_rel->nested->nested, id_orig);
     } else {
         /* 
@@ -194,9 +196,11 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
         
         if (node_ent == t_nil) {      
             /* 
-             * Inserisco nuovo nodo per l'entità id_dest.
+             * Inserisco nuovo nodo per l'entità id_dest e incremento la
+             * dimensione dell'albero id_orig.
              */
             node_ent = rb_create_insert_node(&node_rel->nested, id_dest);
+            node_ent->size = node_ent->size + 1;
             /* 
              * Non essendoci rb_dest, non sarà presente neanche il nodo in rb_orig,
              * che va quindi creato.
@@ -211,6 +215,7 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
             free(id_dest); /* Il nodo rb_dest esiste già, non serve più */
             if (rb_search(&node_ent->nested, id_orig) == t_nil) {
                 rb_create_insert_node(&node_ent->nested, id_orig);
+                node_ent->size = node_ent->size + 1;
             } else {
                 free(id_orig);
             }
@@ -230,6 +235,7 @@ void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
             if (node_orig != t_nil) {
                 free(node_orig->key);
                 node_orig = rb_delete(&node_dest->nested, node_orig);
+                node_dest->size = node_dest->size - 1;
                 free(node_orig);
                 
                 /* Se l'albero rb_orig è vuoto, elimino il nodo della entità destinazione */
@@ -375,6 +381,7 @@ struct rb_node *rb_delete(struct rb_node **rb_root, struct rb_node *node)
     
     if (y != node) {
         node->key = y->key;
+        node->size = y->size;
         node->nested = y->nested;
     }
     if (y->color == BLACK)
@@ -509,6 +516,7 @@ struct rb_node *rb_create_insert_node(struct rb_node **rb_root, char *id_ent)
 {
     struct rb_node *node_ent = malloc(sizeof(struct rb_node));
     node_ent->key = id_ent;
+    node_ent->size = 0;
     node_ent->nested = t_nil;
     rb_insert(rb_root, node_ent);
     return node_ent;
@@ -571,7 +579,7 @@ void rb_visit_nested_inorder(struct rb_node *rb_root)
     
     rb_visit_nested_inorder(rb_root->right);
     
-    curr_size = rb_count_nodes(rb_root->nested);
+    curr_size = rb_root->size; /* Dimensione dell'albero rb_orig salvata nel nodo id_dest */
     if (curr_size != 0) {
         /* Se ho un nuovo max_size, azzero la lista */
         if (curr_size == max_size) {
@@ -609,18 +617,6 @@ void rb_delete_ent_from_rel(struct rb_node **rel_rb_root,
         /* Cerco l'entità nell'albero rb_orig di ogni rb_dest */
         rb_delete_ent_from_rel_nested(&(*curr_rb_root)->nested,
                                       &(*curr_rb_root)->nested, id_ent);
-        
-        /* Se l'albero rb_dest è vuoto, elimino il nodo della relazione */
-        /*if ((*curr_rb_root)->nested == t_nil) {
-            free((*curr_rb_root)->key);
-            node_tmp = rb_delete(rel_rb_root, *curr_rb_root);
-            free(node_tmp);
-        }
-        
-        if (*curr_rb_root != t_nil) {
-            rb_delete_ent_from_rel(rel_rb_root, &(*curr_rb_root)->left, id_ent);
-            rb_delete_ent_from_rel(rel_rb_root, &(*curr_rb_root)->right, id_ent);
-        }*/
     }
 }
 
@@ -637,20 +633,9 @@ void rb_delete_ent_from_rel_nested(struct rb_node **dest_rb_root,
         if (node_tmp != t_nil) {
             free(node_tmp->key);
             node_tmp = rb_delete(&(*curr_rb_root)->nested, node_tmp);
+            (*curr_rb_root)->size = (*curr_rb_root)->size - 1;
             free(node_tmp);
         }
-        
-        /* Se l'albero rb_orig è vuoto, elimino il nodo della entità destinazione */
-        /*if ((*curr_rb_root)->nested == t_nil) {
-            free((*curr_rb_root)->key);
-            node_tmp = rb_delete(dest_rb_root, *curr_rb_root);
-            free(node_tmp);
-        }
-        
-        if (*curr_rb_root != t_nil) {
-            rb_delete_ent_from_rel_nested(dest_rb_root, &(*curr_rb_root)->left, id_ent);
-            rb_delete_ent_from_rel_nested(dest_rb_root, &(*curr_rb_root)->right, id_ent);
-        }*/
     }
 }
 
