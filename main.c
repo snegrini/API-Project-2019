@@ -68,10 +68,12 @@ void list_node_print(struct list_node *head);
  * Input functions
  */
 int readLine(char **str);
+void tokenize(char *str, char **tokens);
 
 int main(int argc, char *argv[])
 {
     char *line = NULL;
+    char *tokens[4];
     
     char command[8];    
     char *id_ent  = NULL;
@@ -94,23 +96,29 @@ int main(int argc, char *argv[])
     
     do {
         line = malloc(sizeof(char) * (DEFAULT_STRING_LENGTH + 1));
+        
         len = readLine(&line);
-        sscanf(line, "%7s", command);
+        tokenize(line, tokens);
+        
+        strcpy(command, tokens[0]);
+        //sscanf(line, "%7s", command);
         //printf("%d\n", len);
                 
         if (strncmp(command, "addent", 7) == 0) {
             id_ent = malloc(sizeof(char) * len);
-            sscanf(line, "%*s %s", id_ent);
+            strcpy(id_ent, tokens[1]);
             addent(&ent_rb_root, id_ent);
         } else if (strncmp(command, "delent", 7) == 0) {
             id_ent = malloc(sizeof(char) * len);
-            sscanf(line, "%*s %s", id_ent);
+            strcpy(id_ent, tokens[1]);
             delent(&ent_rb_root, &rel_rb_root, id_ent);
         } else if (strncmp(command, "addrel", 7) == 0) {
             id_orig = malloc(sizeof(char) * len);
             id_dest = malloc(sizeof(char) * len);
             id_rel = malloc(sizeof(char) * len);
-            sscanf(line, "%*s %s %s %s", id_orig, id_dest, id_rel);
+            strcpy(id_orig, tokens[1]);
+            strcpy(id_dest, tokens[2]);
+            strcpy(id_rel, tokens[3]);
             
             /* Verifico che le entità della relazione siano monitorate. */           
             if (rb_search(&ent_rb_root, id_orig) != t_nil && rb_search(&ent_rb_root, id_dest) != t_nil) {
@@ -124,7 +132,10 @@ int main(int argc, char *argv[])
             id_orig = malloc(sizeof(char) * len);
             id_dest = malloc(sizeof(char) * len);
             id_rel = malloc(sizeof(char) * len);
-            sscanf(line, "%*s %s %s %s", id_orig, id_dest, id_rel);
+            strcpy(id_orig, tokens[1]);
+            strcpy(id_dest, tokens[2]);
+            strcpy(id_rel, tokens[3]);
+            
             delrel(&rel_rb_root, id_orig, id_dest, id_rel);
         } else if (strncmp(command, "report", 7) == 0) {
             report(rel_rb_root);
@@ -710,4 +721,15 @@ int readLine(char **str)
     }
     (*str)[i] = '\0';
     return i;
+}
+
+void tokenize(char *str, char **tokens)
+{
+    int i = 0;
+    char *tok = strtok(str, " ");
+    
+    while (tok != NULL) {
+        tokens[i++] = tok;
+        tok = strtok(NULL, " ");
+    }
 }
