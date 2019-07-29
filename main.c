@@ -51,12 +51,10 @@ struct rb_node *tree_minimum(struct rb_node *node);
 struct rb_node *tree_successor(struct rb_node *node);
 struct rb_node *rb_create_insert_node(struct rb_node **rb_root, char *id_ent);
 void rb_free(struct rb_node **rb_root, int clear_id_ent);
-unsigned int rb_count_nodes(struct rb_node *rb_root);
 void print_report(struct rb_node *rb_root);
 void rb_visit_nested_inorder(struct rb_node *rb_root);
 void rb_delete_ent_from_rel(struct rb_node **rel_rb_root, struct rb_node **curr_rb_root, char *id_ent);
 void rb_delete_ent_from_rel_nested(struct rb_node **dest_rb_root, struct rb_node **curr_rb_root, char *id_ent);
-void rb_print_tree(struct rb_node *rb_root);
 
 /* 
  * List functions
@@ -97,7 +95,6 @@ int main(int argc, char *argv[])
         line = malloc(sizeof(char) * (DEFAULT_STRING_LENGTH + 1));
         len = readLine(&line);
         sscanf(line, "%7s", command);
-        //printf("%d\n", len);
                 
         if (strncmp(command, "addent", 7) == 0) {
             id_ent = malloc(sizeof(char) * len);
@@ -262,14 +259,14 @@ void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
 void report(struct rb_node *rb_root)
 {
     if (rb_root == t_nil) {
-        printf("none");
+        fputs("none", stdout);
     } else {
         print_report(rb_root);
         if (first_print == 1) {
-            printf("none");
+            fputs("none", stdout);
         }
     }
-    printf("\n");
+    fputc('\n', stdout);
     first_print = 1;
 }
 
@@ -538,13 +535,6 @@ void rb_free(struct rb_node **rb_root, int clear_id_ent)
     *rb_root = t_nil;
 }
 
-unsigned int rb_count_nodes(struct rb_node *rb_root)
-{
-    if (rb_root == t_nil)
-        return 0;
-    return 1 + rb_count_nodes(rb_root->left) + rb_count_nodes(rb_root->right);
-}
-
 void print_report(struct rb_node *rb_root)
 {        
     if (rb_root == t_nil)
@@ -556,10 +546,11 @@ void print_report(struct rb_node *rb_root)
     
     if (max_size != 0) {
         if (first_print == 1) {
-            printf("%s", rb_root->key);
+            fputs(rb_root->key, stdout);
             first_print = 0;
         } else {
-            printf(" %s", rb_root->key);
+            fputc(' ', stdout);
+            fputs(rb_root->key, stdout);
         }
         
         list_node_print(ent_list_head);
@@ -639,19 +630,6 @@ void rb_delete_ent_from_rel_nested(struct rb_node **dest_rb_root,
     }
 }
 
-/* TODO: remove*/
-void rb_print_tree(struct rb_node *rb_root)
-{
-    if (rb_root != t_nil) {
-        printf("%s, %d\n", rb_root->key, rb_root->color);
-        rb_print_tree(rb_root->left);
-        rb_print_tree(rb_root->right);
-    } else {
-        printf("t_nil\n");
-    }
-}
-
-
 void list_node_insert(struct list_node **head, char *id_ent)
 {
     struct list_node *new_node = malloc(sizeof(struct list_node));
@@ -677,7 +655,8 @@ void list_node_print(struct list_node *head)
 {
     struct list_node *curr = head;
     while (curr != NULL) {
-        printf(" %s", curr->id_ent);
+        fputc(' ', stdout);
+        fputs(curr->id_ent, stdout);
         curr = curr->next;
     }
 }
