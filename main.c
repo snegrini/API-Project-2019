@@ -68,6 +68,7 @@ void tokenize(char *str, char **tokens);
 int main(int argc, char *argv[])
 {
     char *line = NULL;
+    char *tokens[4];
     
     char command[8];    
     char *id_ent  = NULL;
