@@ -9,6 +9,7 @@
 
 struct rb_node {
     char *key;
+    unsigned int size;
     int color;
     struct rb_node *nested;
     struct rb_node *parent;
@@ -16,25 +17,25 @@ struct rb_node {
     struct rb_node *right;
 };
 
-struct list_node {
-    char *id_ent;
-    struct list_node *next;
-};
-
 /*
  * Global variables
  */
 struct rb_node leaf;
-struct rb_node *t_nil = &leaf;
-int first_print = 1;
-struct list_node *ent_list_head = NULL;
-unsigned int max_size = 0;
+struct rb_node *t_nil;
+int first_print;
+int need_report_update;
+struct rb_node *ent_rb_root; /* Store all entities before relations are created. */
+struct rb_node *rel_rb_root;
+struct rb_node *report_rb_root;
 
-void addent(struct rb_node **rb_root, char *id_ent);
-void delent(struct rb_node **ent_rb_root, struct rb_node **rel_rb_root, char *id_ent);
-void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel);
-void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel);
-void report(struct rb_node *rb_root);
+/*
+ * Default functions
+ */
+void addent(char *id_ent);
+void delent(char *id_ent);
+void addrel(char *id_orig, char *id_dest, char *id_rel);
+void delrel(char *id_orig, char *id_dest, char *id_rel);
+void report();
 
 /*
  * RB Tree functions
@@ -50,24 +51,18 @@ struct rb_node *tree_minimum(struct rb_node *node);
 struct rb_node *tree_successor(struct rb_node *node);
 struct rb_node *rb_create_insert_node(struct rb_node **rb_root, char *id_ent);
 void rb_free(struct rb_node **rb_root, int clear_id_ent);
-unsigned int rb_count_nodes(struct rb_node *rb_root);
+void build_report(struct rb_node *rb_root);
+void update_report(struct rb_node *node_rep, char *id_dest, unsigned int size);
+void rb_visit_nested_inorder(struct rb_node *node_rep, struct rb_node *node_dest);
+void rb_delete_ent_from_rel(struct rb_node **curr_rb_root, char *id_ent);
+void rb_delete_ent_from_rel_nested(struct rb_node **curr_rb_root, char *id_ent);
 void print_report(struct rb_node *rb_root);
-void rb_visit_nested_inorder(struct rb_node *rb_root);
-void rb_delete_ent_from_rel(struct rb_node **rel_rb_root, struct rb_node **curr_rb_root, char *id_ent);
-void rb_delete_ent_from_rel_nested(struct rb_node **dest_rb_root, struct rb_node **curr_rb_root, char *id_ent);
-void rb_print_tree(struct rb_node *rb_root);
-
-/* 
- * List functions
- */
-void list_node_insert(struct list_node **head, char *id_ent);
-void list_node_free(struct list_node **head, int clear_id_ent);
-void list_node_print(struct list_node *head);
+void print_report_nested(struct rb_node *rb_root);
 
 /*
  * Input functions
  */
-int readLine(char **str);
+int *readLine(char **str);
 void tokenize(char *str, char **tokens);
 
 int main(int argc, char *argv[])
@@ -81,138 +76,168 @@ int main(int argc, char *argv[])
     char *id_dest = NULL;
     char *id_rel  = NULL;
     
-    int len;
-
-    /* Set t_nil (leaf) color to BLACK */
-    t_nil->color = BLACK;
+    int *index;
     
-    struct rb_node *ent_rb_root; /* Store all entities before relations are created. */
-    struct rb_node *rel_rb_root;
-        
+    /*
+     * Initialize gloval vars
+     */
+    t_nil = &leaf;
+    t_nil->color = BLACK; /* Set t_nil (leaf) color to BLACK */
+    first_print = 1;
+    need_report_update = 0;
     ent_rb_root = t_nil;
     rel_rb_root = t_nil;
+    report_rb_root = t_nil;
     rel_rb_root->nested = t_nil;
     rel_rb_root->nested->nested = t_nil;
     
     do {
         line = malloc(sizeof(char) * (DEFAULT_STRING_LENGTH + 1));
         
-        len = readLine(&line);
+        index = readLine(&line);
         tokenize(line, tokens);
-        
-        strcpy(command, tokens[0]);
-        //sscanf(line, "%7s", command);
-        //printf("%d\n", len);
+        memcpy(command, tokens[0], 7);
                 
         if (strncmp(command, "addent", 7) == 0) {
-            id_ent = malloc(sizeof(char) * len);
-            strcpy(id_ent, tokens[1]);
-            addent(&ent_rb_root, id_ent);
+            id_ent = malloc(sizeof(char) * (index[0] - 1));
+            memcpy(id_ent, tokens[1], (index[0] - 1));
+            addent(id_ent);
         } else if (strncmp(command, "delent", 7) == 0) {
-            id_ent = malloc(sizeof(char) * len);
-            strcpy(id_ent, tokens[1]);
-            delent(&ent_rb_root, &rel_rb_root, id_ent);
+            id_ent = malloc(sizeof(char) * (index[0] - 1));
+            memcpy(id_ent, tokens[1], (index[0] - 1));
+            delent(id_ent);
         } else if (strncmp(command, "addrel", 7) == 0) {
-            id_orig = malloc(sizeof(char) * len);
-            id_dest = malloc(sizeof(char) * len);
-            id_rel = malloc(sizeof(char) * len);
-            strcpy(id_orig, tokens[1]);
-            strcpy(id_dest, tokens[2]);
-            strcpy(id_rel, tokens[3]);
+            id_orig = malloc(sizeof(char) * (index[0] - 1));
+            id_dest = malloc(sizeof(char) * (index[1] - 1));
+            id_rel = malloc(sizeof(char) * (index[2] - 1));
+            memcpy(id_orig, tokens[1], (index[0] - 1));
+            memcpy(id_dest, tokens[2], (index[1] - 1));
+            memcpy(id_rel, tokens[3], (index[2] - 1));
             
             /* Verifico che le entità della relazione siano monitorate. */           
-            if (rb_search(&ent_rb_root, id_orig) != t_nil && rb_search(&ent_rb_root, id_dest) != t_nil) {
-                addrel(&rel_rb_root, id_orig, id_dest, id_rel);
+            if (rb_search(&ent_rb_root, id_orig) != t_nil
+                && rb_search(&ent_rb_root, id_dest) != t_nil) {
+                addrel(id_orig, id_dest, id_rel);
             } else {
                 free(id_orig);
                 free(id_dest);
                 free(id_rel);
             }         
         } else if (strncmp(command, "delrel", 7) == 0) {
-            id_orig = malloc(sizeof(char) * len);
-            id_dest = malloc(sizeof(char) * len);
-            id_rel = malloc(sizeof(char) * len);
-            strcpy(id_orig, tokens[1]);
-            strcpy(id_dest, tokens[2]);
-            strcpy(id_rel, tokens[3]);
+            id_orig = malloc(sizeof(char) * (index[0] - 1));
+            id_dest = malloc(sizeof(char) * (index[1] - 1));
+            id_rel = malloc(sizeof(char) * (index[2] - 1));
+            memcpy(id_orig, tokens[1], (index[0] - 1));
+            memcpy(id_dest, tokens[2], (index[1] - 1));
+            memcpy(id_rel, tokens[3], (index[2] - 1));
             
-            delrel(&rel_rb_root, id_orig, id_dest, id_rel);
+            delrel(id_orig, id_dest, id_rel);
         } else if (strncmp(command, "report", 7) == 0) {
-            report(rel_rb_root);
+            report();
         }
         free(line);
+        free(index);
     } while (strncmp(command, "end", 4) != 0);
     
     rb_free(&ent_rb_root, 1);
     rb_free(&rel_rb_root, 1);
+    rb_free(&report_rb_root, 0);
 
     return 0;
 }
 
-void addent(struct rb_node **rb_root, char *id_ent)
+void addent(char *id_ent)
 {
     struct rb_node *new_node_ent;
     new_node_ent = malloc(sizeof(struct rb_node));
     new_node_ent->key = id_ent;
     new_node_ent->nested = t_nil;
     
-    if (rb_insert(rb_root, new_node_ent) == 0) {
-        /* Nessun inserimento, key già presente */
+    if (rb_insert(&ent_rb_root, new_node_ent) == 0) {
+        /* Nessun inserimento, key già presente */it
         free(id_ent);
         free(new_node_ent);
     }
 }
 
-void delent(struct rb_node **ent_rb_root, struct rb_node **rel_rb_root, char *id_ent)
+void delent(char *id_ent)
 {
     struct rb_node *node_tmp;
     
-    node_tmp = rb_search(ent_rb_root, id_ent);
+    node_tmp = rb_search(&ent_rb_root, id_ent);
     if (node_tmp != t_nil) {
         free(node_tmp->key);
-        node_tmp = rb_delete(ent_rb_root, node_tmp);
+        node_tmp = rb_delete(&ent_rb_root, node_tmp);
         free(node_tmp);
     }
     
-    if (*rel_rb_root != t_nil)       
-        rb_delete_ent_from_rel(rel_rb_root, rel_rb_root, id_ent);
+    if (rel_rb_root != t_nil) {
+        rb_delete_ent_from_rel(&rel_rb_root, id_ent);
+        /* Setting flag for report update */
+        need_report_update = 1;
+    }
     free(id_ent);
 }
 
 /*
  * Add a relation. If the relation is not existent, a new one is created.
  */
-void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel)
+void addrel(char *id_orig, char *id_dest, char *id_rel)
 {
-    struct rb_node *node_rel;
     struct rb_node *node_ent;
-    node_rel = rb_search(rb_root, id_rel);
+    struct rb_node *node_rel;
+    struct rb_node *node_rep;
+    
+    node_rel = rb_search(&rel_rb_root, id_rel);
     
     if (node_rel == t_nil) {
-        node_rel = rb_create_insert_node(rb_root, id_rel);
+        node_rel = rb_create_insert_node(&rel_rb_root, id_rel);
         
-        /* La relazione prima non esisteva. Sicuramente devo creare rb_dest e rb_orig */
-        rb_create_insert_node(&node_rel->nested, id_dest);
+        /* The relation did not exist before. Have to create rb_dest and rb_orig */
+        node_ent = rb_create_insert_node(&node_rel->nested, id_dest);
+        ++node_ent->size;
         rb_create_insert_node(&node_rel->nested->nested, id_orig);
+        
+        if (need_report_update == 1) {
+            rb_free(&report_rb_root, 0);
+            build_report(rel_rb_root);
+            need_report_update = 0;
+        } else {
+            /* Report update */
+            node_rep = rb_create_insert_node(&report_rb_root, node_rel->key);
+            node_rep->size = node_ent->size;
+            rb_create_insert_node(&node_rep->nested, node_ent->key);
+        }
     } else {
         /* 
-         * La relazione esiste.
-         * Cerco se è già presente rb_dest dell'entità id_dest,
-         * altrimenti la creo.
+         * The relation already exists.
+         * Checking if rb_dest exists, otherwise a new one is created
          */
         free(id_rel); /* Non viene utilizzato se la relazione esiste già. */
         node_ent = rb_search(&node_rel->nested, id_dest);
         
         if (node_ent == t_nil) {      
             /* 
-             * Inserisco nuovo nodo per l'entità id_dest.
+             * Inserisco nuovo nodo per l'entità id_dest e incremento la
+             * dimensione dell'albero id_orig.
              */
             node_ent = rb_create_insert_node(&node_rel->nested, id_dest);
+            ++node_ent->size;
             /* 
              * Non essendoci rb_dest, non sarà presente neanche il nodo in rb_orig,
              * che va quindi creato.
              */
             rb_create_insert_node(&node_ent->nested, id_orig);
+            
+            if (need_report_update == 1) {
+                rb_free(&report_rb_root, 0);
+                build_report(rel_rb_root);
+                need_report_update = 0;
+            } else {
+                /* Report update */
+                node_rep = rb_search(&report_rb_root, node_rel->key);
+                update_report(node_rep, node_ent->key, node_ent->size);
+            }
         } else {
             /*
              * Cerco, se esiste, il nodo dell'entità id_orig.
@@ -222,6 +247,16 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
             free(id_dest); /* Il nodo rb_dest esiste già, non serve più */
             if (rb_search(&node_ent->nested, id_orig) == t_nil) {
                 rb_create_insert_node(&node_ent->nested, id_orig);
+                ++node_ent->size;
+                if (need_report_update == 1) {
+                    rb_free(&report_rb_root, 0);
+                    build_report(rel_rb_root);
+                    need_report_update = 0;
+                } else {
+                    /* Report update */
+                    node_rep = rb_search(&report_rb_root, node_rel->key);
+                    update_report(node_rep, node_ent->key, node_ent->size);
+                }
             } else {
                 free(id_orig);
             }
@@ -230,10 +265,10 @@ void addrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
     
 }
 
-void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel)
+void delrel(char *id_orig, char *id_dest, char *id_rel)
 {
     struct rb_node *node_rel, *node_dest, *node_orig;
-    node_rel = rb_search(rb_root, id_rel);
+    node_rel = rb_search(&rel_rb_root, id_rel);
     if (node_rel != t_nil) {
         node_dest = rb_search(&node_rel->nested, id_dest);
         if (node_dest != t_nil) {
@@ -241,7 +276,9 @@ void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
             if (node_orig != t_nil) {
                 free(node_orig->key);
                 node_orig = rb_delete(&node_dest->nested, node_orig);
-                free(node_orig);
+                node_dest->size = node_dest->size - 1;
+                free(node_orig);                
+                need_report_update = 1; /* Setting flag for report update */
                 
                 /* Se l'albero rb_orig è vuoto, elimino il nodo della entità destinazione */
                 if (node_dest->nested == t_nil) {
@@ -252,7 +289,7 @@ void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
                     /* Se l'albero rb_dest è vuoto, elimino il nodo della relazione */
                     if (node_rel->nested == t_nil) {
                         free(node_rel->key);
-                        node_rel = rb_delete(rb_root, node_rel);
+                        node_rel = rb_delete(&rel_rb_root, node_rel);
                         free(node_rel);
                     }
                 }
@@ -264,18 +301,23 @@ void delrel(struct rb_node **rb_root, char *id_orig, char *id_dest, char *id_rel
     free(id_rel);
 }
 
-void report(struct rb_node *rb_root)
+void report()
 {
-    if (rb_root == t_nil) {
-        printf("none");
+    if (rel_rb_root == t_nil) {
+        fputs("none", stdout);
     } else {
-        print_report(rb_root);
-        if (first_print == 1) {
-            printf("none");
+        if (need_report_update == 1) {
+            rb_free(&report_rb_root, 0);
+            build_report(rel_rb_root);
+            need_report_update = 0;
         }
+        print_report(report_rb_root);
+        if (first_print == 1) {
+            fputs("none", stdout);
+        }
+        first_print = 1;
     }
-    printf("\n");
-    first_print = 1;
+    fputc('\n', stdout);
 }
 
 /*
@@ -296,12 +338,12 @@ int rb_insert(struct rb_node **rb_root, struct rb_node *new)
         else if (strcmp(new->key, x->key) > 0)
             x = x->right;
         else
-            return 0; // Avoid duplicates
+            return 0; /* Avoid key duplicates */
     }
     new->parent = y;
     
     if (y == t_nil)
-        *rb_root = new; // Empty tree
+        *rb_root = new; /* Empty tree */
     else if (strcmp(new->key, y->key) < 0)
         y->left = new;
     else
@@ -386,6 +428,7 @@ struct rb_node *rb_delete(struct rb_node **rb_root, struct rb_node *node)
     
     if (y != node) {
         node->key = y->key;
+        node->size = y->size;
         node->nested = y->nested;
     }
     if (y->color == BLACK)
@@ -520,6 +563,7 @@ struct rb_node *rb_create_insert_node(struct rb_node **rb_root, char *id_ent)
 {
     struct rb_node *node_ent = malloc(sizeof(struct rb_node));
     node_ent->key = id_ent;
+    node_ent->size = 0;
     node_ent->nested = t_nil;
     rb_insert(rb_root, node_ent);
     return node_ent;
@@ -541,70 +585,63 @@ void rb_free(struct rb_node **rb_root, int clear_id_ent)
     *rb_root = t_nil;
 }
 
-unsigned int rb_count_nodes(struct rb_node *rb_root)
-{
-    if (rb_root == t_nil)
-        return 0;
-    return 1 + rb_count_nodes(rb_root->left) + rb_count_nodes(rb_root->right);
-}
-
-void print_report(struct rb_node *rb_root)
-{        
+void build_report(struct rb_node *rb_root)
+{   
+    struct rb_node *node_rep;
+    
     if (rb_root == t_nil)
         return;
     
-    print_report(rb_root->left);
-    
-    rb_visit_nested_inorder(rb_root->nested);
-    
-    if (max_size != 0) {
-        if (first_print == 1) {
-            printf("%s", rb_root->key);
-            first_print = 0;
-        } else {
-            printf(" %s", rb_root->key);
-        }
+    build_report(rb_root->left);
         
-        list_node_print(ent_list_head);
-        printf(" %d;", max_size);
-        list_node_free(&ent_list_head, 0);
-        max_size = 0;
+    if (rb_root != t_nil) {
+        node_rep = rb_create_insert_node(&report_rb_root, rb_root->key);
+        rb_visit_nested_inorder(node_rep, rb_root->nested);
     }
-    print_report(rb_root->right);
+    
+    build_report(rb_root->right);
 }
 
-void rb_visit_nested_inorder(struct rb_node *rb_root)
+void update_report(struct rb_node *node_rep, char *id_dest, unsigned int size)
 {
-    unsigned int curr_size = 0;
-    
-    if (rb_root == t_nil)
+    /* Se ho un nuovo max_size, azzero l'albero */
+    if (size == node_rep->size) {
+        rb_create_insert_node(&node_rep->nested, id_dest);
+    } else if (size > node_rep->size) {
+        rb_free(&node_rep->nested, 0);
+        rb_create_insert_node(&node_rep->nested, id_dest);
+        node_rep->size = size;
+    }
+}
+
+void rb_visit_nested_inorder(struct rb_node *node_rep, struct rb_node *node_dest)
+{   
+    if (node_dest == t_nil)
         return;
     
-    rb_visit_nested_inorder(rb_root->right);
+    rb_visit_nested_inorder(node_rep, node_dest->right);
     
-    curr_size = rb_count_nodes(rb_root->nested);
-    if (curr_size != 0) {
-        /* Se ho un nuovo max_size, azzero la lista */
-        if (curr_size == max_size) {
-            list_node_insert(&ent_list_head, rb_root->key);
-        } else if (curr_size > max_size) {
-            list_node_free(&ent_list_head, 0);
-            list_node_insert(&ent_list_head, rb_root->key);
-            max_size = curr_size;
+    if (node_dest->size != 0) {
+        /* Se ho un nuovo max_size, azzero l'albero */
+        if (node_dest->size == node_rep->size) {
+            rb_create_insert_node(&node_rep->nested, node_dest->key);
+        } else if (node_dest->size > node_rep->size) {
+            rb_free(&node_rep->nested, 0);
+            rb_create_insert_node(&node_rep->nested, node_dest->key);
+            node_rep->size = node_dest->size;
         }
     }
     
-    rb_visit_nested_inorder(rb_root->left);
+    rb_visit_nested_inorder(node_rep, node_dest->left);
 }
 
-void rb_delete_ent_from_rel(struct rb_node **rel_rb_root,
-                            struct rb_node **curr_rb_root, char *id_ent)
+void rb_delete_ent_from_rel(struct rb_node **curr_rb_root, char *id_ent)
 {
     struct rb_node *node_tmp;
 
     if (*curr_rb_root != t_nil) {
-        rb_delete_ent_from_rel(rel_rb_root, &(*curr_rb_root)->left, id_ent);
-        rb_delete_ent_from_rel(rel_rb_root, &(*curr_rb_root)->right, id_ent);
+        rb_delete_ent_from_rel(&(*curr_rb_root)->left, id_ent);
+        rb_delete_ent_from_rel(&(*curr_rb_root)->right, id_ent);
         /* 
          * Cerco l'entità nell'albero rb_dest di ogni relazione,
          * se la trovo la elimino ed elimino anche l'albero rb_orig associato.
@@ -618,109 +655,95 @@ void rb_delete_ent_from_rel(struct rb_node **rel_rb_root,
         }
         
         /* Cerco l'entità nell'albero rb_orig di ogni rb_dest */
-        rb_delete_ent_from_rel_nested(&(*curr_rb_root)->nested,
-                                      &(*curr_rb_root)->nested, id_ent);
-        
-        /* Se l'albero rb_dest è vuoto, elimino il nodo della relazione */
-        /*if ((*curr_rb_root)->nested == t_nil) {
-            free((*curr_rb_root)->key);
-            node_tmp = rb_delete(rel_rb_root, *curr_rb_root);
-            free(node_tmp);
-        }
-        
-        if (*curr_rb_root != t_nil) {
-            rb_delete_ent_from_rel(rel_rb_root, &(*curr_rb_root)->left, id_ent);
-            rb_delete_ent_from_rel(rel_rb_root, &(*curr_rb_root)->right, id_ent);
-        }*/
+        rb_delete_ent_from_rel_nested(&(*curr_rb_root)->nested, id_ent);
     }
 }
 
-void rb_delete_ent_from_rel_nested(struct rb_node **dest_rb_root, 
-                                   struct rb_node **curr_rb_root, char *id_ent)
+void rb_delete_ent_from_rel_nested(struct rb_node **curr_rb_root, char *id_ent)
 {
     struct rb_node *node_tmp;
     if (*curr_rb_root != t_nil) {
-        rb_delete_ent_from_rel_nested(dest_rb_root, &(*curr_rb_root)->left, id_ent);
-        rb_delete_ent_from_rel_nested(dest_rb_root, &(*curr_rb_root)->right, id_ent);
+        rb_delete_ent_from_rel_nested(&(*curr_rb_root)->left, id_ent);
+        rb_delete_ent_from_rel_nested(&(*curr_rb_root)->right, id_ent);
 
         /* Cerco l'entità nell'albero rb_orig, se la trovo la elimino */
         node_tmp = rb_search(&(*curr_rb_root)->nested, id_ent);
         if (node_tmp != t_nil) {
             free(node_tmp->key);
             node_tmp = rb_delete(&(*curr_rb_root)->nested, node_tmp);
+            (*curr_rb_root)->size = (*curr_rb_root)->size - 1;
             free(node_tmp);
         }
-        
-        /* Se l'albero rb_orig è vuoto, elimino il nodo della entità destinazione */
-        /*if ((*curr_rb_root)->nested == t_nil) {
-            free((*curr_rb_root)->key);
-            node_tmp = rb_delete(dest_rb_root, *curr_rb_root);
-            free(node_tmp);
+    }
+}
+
+void print_report(struct rb_node *rb_root)
+{
+    if (rb_root == t_nil)
+        return;
+    
+    print_report(rb_root->left);
+    
+    if (rb_root->size != 0) {
+        if (first_print == 1) {
+            fputc('"', stdout);
+            fputs(rb_root->key, stdout);
+            fputc('"', stdout);
+            first_print = 0;
+        } else {
+            fputc(' ', stdout);
+            fputc('"', stdout);
+            fputs(rb_root->key, stdout);   
+            fputc('"', stdout);
         }
-        
-        if (*curr_rb_root != t_nil) {
-            rb_delete_ent_from_rel_nested(dest_rb_root, &(*curr_rb_root)->left, id_ent);
-            rb_delete_ent_from_rel_nested(dest_rb_root, &(*curr_rb_root)->right, id_ent);
-        }*/
+        print_report_nested(rb_root->nested);
+        printf(" %d;", rb_root->size);
     }
+    
+    print_report(rb_root->right);
 }
 
-/* TODO: remove*/
-void rb_print_tree(struct rb_node *rb_root)
+void print_report_nested(struct rb_node *rb_root)
 {
-    if (rb_root != t_nil) {
-        printf("%s, %d\n", rb_root->key, rb_root->color);
-        rb_print_tree(rb_root->left);
-        rb_print_tree(rb_root->right);
-    } else {
-        printf("t_nil\n");
-    }
+    if (rb_root == t_nil)
+        return;
+    print_report_nested(rb_root->left);
+    fputc(' ', stdout);
+    fputc('"', stdout);
+    fputs(rb_root->key, stdout);
+    fputc('"', stdout);
+    print_report_nested(rb_root->right);
 }
 
-
-void list_node_insert(struct list_node **head, char *id_ent)
+/*
+ * @return: array of strings sizes
+ */
+int *readLine(char **str)
 {
-    struct list_node *new_node = malloc(sizeof(struct list_node));
-    new_node->id_ent = id_ent;
-    new_node->next = *head;
-    *head = new_node;
-}
-
-void list_node_free(struct list_node **head, int clear_id_ent)
-{
-    struct list_node *curr;
-    while (*head != NULL) {
-        curr = *head;
-        *head = (*head)->next;
-        if (clear_id_ent == 1) {
-            free(curr->id_ent);
-        }
-        free(curr);
-    }
-}
-
-void list_node_print(struct list_node *head)
-{
-    struct list_node *curr = head;
-    while (curr != NULL) {
-        printf(" %s", curr->id_ent);
-        curr = curr->next;
-    }
-}
-
-int readLine(char **str)
-{
-    int ch, i = 0;
+    int ch;
+    int i = 0, j = 0;
+    char count = 0;
+    int *index = calloc(3, sizeof(int));
     
     while ((ch = getchar()) != '\n' && ch != EOF) {
         (*str)[i++] = ch;
+        
+        if (ch == '"') {
+            count = !count;
+            if (count == 0) {
+                ++index[j++];
+            }
+        }
+        if (count != 0) {
+            ++index[j];
+        }
 
         if (i % DEFAULT_STRING_LENGTH == 0) {
             *str = realloc(*str, sizeof(char) * (i + DEFAULT_STRING_LENGTH + 1));
         }
     }
     (*str)[i] = '\0';
-    return i;
+    return index;
 }
 
 void tokenize(char *str, char **tokens)
@@ -729,7 +752,9 @@ void tokenize(char *str, char **tokens)
     char *tok = strtok(str, " ");
     
     while (tok != NULL) {
-        tokens[i++] = tok;
-        tok = strtok(NULL, " ");
+        if (*tok != ' ') {
+            tokens[i++] = tok;
+        }
+        tok = strtok(NULL, "\"");
     }
 }
