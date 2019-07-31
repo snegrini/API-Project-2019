@@ -68,7 +68,6 @@ void tokenize(char *str, char **tokens);
 int main(int argc, char *argv[])
 {
     char *line = NULL;
-    char *tokens[4];
     
     char command[8];    
     char *id_ent  = NULL;
@@ -154,7 +153,7 @@ void addent(char *id_ent)
     new_node_ent->nested = t_nil;
     
     if (rb_insert(&ent_rb_root, new_node_ent) == 0) {
-        /* Nessun inserimento, key già presente */it
+        /* Nessun inserimento, key già presente */
         free(id_ent);
         free(new_node_ent);
     }
