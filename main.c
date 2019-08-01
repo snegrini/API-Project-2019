@@ -198,11 +198,7 @@ void addrel(char *id_orig, char *id_dest, char *id_rel)
         ++node_ent->size;
         rb_create_insert_node(&node_rel->nested->nested, id_orig);
         
-        if (need_report_update == 1) {
-            rb_free(&report_rb_root, 0);
-            build_report(rel_rb_root);
-            need_report_update = 0;
-        } else {
+        if (need_report_update == 0) {
             /* Report update */
             node_rep = rb_create_insert_node(&report_rb_root, node_rel->key);
             node_rep->size = node_ent->size;
@@ -229,11 +225,7 @@ void addrel(char *id_orig, char *id_dest, char *id_rel)
              */
             rb_create_insert_node(&node_ent->nested, id_orig);
             
-            if (need_report_update == 1) {
-                rb_free(&report_rb_root, 0);
-                build_report(rel_rb_root);
-                need_report_update = 0;
-            } else {
+            if (need_report_update == 0) {
                 /* Report update */
                 node_rep = rb_search(&report_rb_root, node_rel->key);
                 update_report(node_rep, node_ent->key, node_ent->size);
@@ -245,14 +237,9 @@ void addrel(char *id_orig, char *id_dest, char *id_rel)
              * Se esiste, libero lo spazio della stringa id_orig e non faccio altro.
              */
             free(id_dest); /* Il nodo rb_dest esiste già, non serve più */
-            if (rb_search(&node_ent->nested, id_orig) == t_nil) {
-                rb_create_insert_node(&node_ent->nested, id_orig);
+            if (rb_create_insert_node(&node_ent->nested, id_orig) != t_nil) {
                 ++node_ent->size;
-                if (need_report_update == 1) {
-                    rb_free(&report_rb_root, 0);
-                    build_report(rel_rb_root);
-                    need_report_update = 0;
-                } else {
+                if (need_report_update == 0) {
                     /* Report update */
                     node_rep = rb_search(&report_rb_root, node_rel->key);
                     update_report(node_rep, node_ent->key, node_ent->size);
@@ -565,8 +552,10 @@ struct rb_node *rb_create_insert_node(struct rb_node **rb_root, char *id_ent)
     node_ent->key = id_ent;
     node_ent->size = 0;
     node_ent->nested = t_nil;
-    rb_insert(rb_root, node_ent);
-    return node_ent;
+    if (rb_insert(rb_root, node_ent) == 1)
+        return node_ent;
+    free(node_ent);
+    return t_nil;
 }
 
 void rb_free(struct rb_node **rb_root, int clear_id_ent)
