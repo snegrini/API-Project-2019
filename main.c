@@ -2,7 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DEFAULT_STRING_LENGTH   50
+#define DEFAULT_LINE_LENGTH   113
+#define DEFAULT_STRING_LENGTH   35
 
 #define RED     0
 #define BLACK   1
@@ -62,7 +63,7 @@ void print_report_nested(struct rb_node *rb_root);
 /*
  * Input functions
  */
-int *readLine(char **str);
+void readLine(char **str);
 void tokenize(char *str, char **tokens);
 
 int main(int argc, char *argv[])
@@ -76,8 +77,6 @@ int main(int argc, char *argv[])
     char *id_dest = NULL;
     char *id_rel  = NULL;
     
-    int *index;
-    
     /*
      * Initialize gloval vars
      */
@@ -87,32 +86,32 @@ int main(int argc, char *argv[])
     need_report_update = 0;
     ent_rb_root = t_nil;
     rel_rb_root = t_nil;
-    report_rb_root = t_nil;
     rel_rb_root->nested = t_nil;
     rel_rb_root->nested->nested = t_nil;
+    report_rb_root = t_nil;
     
     do {
-        line = malloc(sizeof(char) * (DEFAULT_STRING_LENGTH + 1));
+        line = malloc(sizeof(char) * DEFAULT_LINE_LENGTH);
         
-        index = readLine(&line);
+        readLine(&line);
         tokenize(line, tokens);
         memcpy(command, tokens[0], 7);
                 
         if (strncmp(command, "addent", 7) == 0) {
-            id_ent = malloc(sizeof(char) * (index[0] - 1));
-            memcpy(id_ent, tokens[1], (index[0] - 1));
+            id_ent = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
+            strcpy(id_ent, tokens[1]);
             addent(id_ent);
         } else if (strncmp(command, "delent", 7) == 0) {
-            id_ent = malloc(sizeof(char) * (index[0] - 1));
-            memcpy(id_ent, tokens[1], (index[0] - 1));
+            id_ent = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
+            strcpy(id_ent, tokens[1]);
             delent(id_ent);
         } else if (strncmp(command, "addrel", 7) == 0) {
-            id_orig = malloc(sizeof(char) * (index[0] - 1));
-            id_dest = malloc(sizeof(char) * (index[1] - 1));
-            id_rel = malloc(sizeof(char) * (index[2] - 1));
-            memcpy(id_orig, tokens[1], (index[0] - 1));
-            memcpy(id_dest, tokens[2], (index[1] - 1));
-            memcpy(id_rel, tokens[3], (index[2] - 1));
+            id_orig = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
+            id_dest = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
+            id_rel = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
+            strcpy(id_orig, tokens[1]);
+            strcpy(id_dest, tokens[2]);
+            strcpy(id_rel, tokens[3]);
             
             /* Verifico che le entità della relazione siano monitorate. */           
             if (rb_search(&ent_rb_root, id_orig) != t_nil
@@ -124,19 +123,18 @@ int main(int argc, char *argv[])
                 free(id_rel);
             }         
         } else if (strncmp(command, "delrel", 7) == 0) {
-            id_orig = malloc(sizeof(char) * (index[0] - 1));
-            id_dest = malloc(sizeof(char) * (index[1] - 1));
-            id_rel = malloc(sizeof(char) * (index[2] - 1));
-            memcpy(id_orig, tokens[1], (index[0] - 1));
-            memcpy(id_dest, tokens[2], (index[1] - 1));
-            memcpy(id_rel, tokens[3], (index[2] - 1));
+            id_orig = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
+            id_dest = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
+            id_rel = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
+            strcpy(id_orig, tokens[1]);
+            strcpy(id_dest, tokens[2]);
+            strcpy(id_rel, tokens[3]);
             
             delrel(id_orig, id_dest, id_rel);
         } else if (strncmp(command, "report", 7) == 0) {
             report();
         }
         free(line);
-        free(index);
     } while (strncmp(command, "end", 4) != 0);
     
     rb_free(&ent_rb_root, 1);
@@ -715,41 +713,28 @@ void print_report_nested(struct rb_node *rb_root)
     print_report_nested(rb_root->right);
 }
 
-/*
- * @return: array of strings sizes
- */
-int *readLine(char **str)
+void readLine(char **str)
+{
+    if (fgets(*str, DEFAULT_LINE_LENGTH, stdin) != NULL);
+}
+
+/*void readLine(char **str)
 {
     int ch;
-    int i = 0, j = 0;
-    char count = 0;
-    int *index = calloc(3, sizeof(int));
+    int i = 0;
     
     while ((ch = getchar()) != '\n' && ch != EOF) {
         (*str)[i++] = ch;
-        
-        if (ch == '"') {
-            count = !count;
-            if (count == 0) {
-                ++index[j++];
-            }
-        }
-        if (count != 0) {
-            ++index[j];
-        }
-
-        if (i % DEFAULT_STRING_LENGTH == 0) {
-            *str = realloc(*str, sizeof(char) * (i + DEFAULT_STRING_LENGTH + 1));
-        }
     }
     (*str)[i] = '\0';
-    return index;
-}
+}*/
 
 void tokenize(char *str, char **tokens)
 {
     int i = 0;
-    char *tok = strtok(str, " ");
+    char *tok;
+    tok = strtok(str, "\n");
+    tok = strtok(tok, " ");
     
     while (tok != NULL) {
         if (*tok != ' ') {
