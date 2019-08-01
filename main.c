@@ -69,7 +69,7 @@ void fputui(unsigned int num);
 char *readline();
 void tokenize();
 
-int main(int argc, char *argv[])
+int main(void)
 {
     char command[8];    
     char *id_ent  = NULL;
