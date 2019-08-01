@@ -3,7 +3,7 @@
 #include <string.h>
 
 #define DEFAULT_LINE_LENGTH   113
-#define DEFAULT_STRING_LENGTH   35
+#define DEFAULT_STRING_LENGTH   36
 
 #define RED     0
 #define BLACK   1
@@ -25,6 +25,7 @@ struct rb_node leaf;
 struct rb_node *t_nil;
 int first_print;
 int need_report_update;
+char *tokens[4];
 struct rb_node *ent_rb_root; /* Store all entities before relations are created. */
 struct rb_node *rel_rb_root;
 struct rb_node *report_rb_root;
@@ -59,17 +60,18 @@ void rb_delete_ent_from_rel(struct rb_node **curr_rb_root, char *id_ent);
 void rb_delete_ent_from_rel_nested(struct rb_node **curr_rb_root, char *id_ent);
 void print_report(struct rb_node *rb_root);
 void print_report_nested(struct rb_node *rb_root);
+void fputui(unsigned int num);
 
 /*
  * Input functions
  */
 void readLine(char **str);
-void tokenize(char *str, char **tokens);
+void tokenize(char *str);
 
 int main(int argc, char *argv[])
 {
     char *line = NULL;
-    char *tokens[4];
+    
     
     char command[8];    
     char *id_ent  = NULL;
@@ -94,21 +96,21 @@ int main(int argc, char *argv[])
         line = malloc(sizeof(char) * DEFAULT_LINE_LENGTH);
         
         readLine(&line);
-        tokenize(line, tokens);
+        tokenize(line);
         memcpy(command, tokens[0], 7);
                 
         if (strncmp(command, "addent", 7) == 0) {
-            id_ent = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
+            id_ent = calloc(DEFAULT_STRING_LENGTH, sizeof(char));
             strcpy(id_ent, tokens[1]);
             addent(id_ent);
         } else if (strncmp(command, "delent", 7) == 0) {
-            id_ent = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
+            id_ent = calloc(DEFAULT_STRING_LENGTH, sizeof(char));
             strcpy(id_ent, tokens[1]);
             delent(id_ent);
         } else if (strncmp(command, "addrel", 7) == 0) {
-            id_orig = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
-            id_dest = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
-            id_rel = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
+            id_orig = calloc(DEFAULT_STRING_LENGTH, sizeof(char));
+            id_dest = calloc(DEFAULT_STRING_LENGTH, sizeof(char));
+            id_rel = calloc(DEFAULT_STRING_LENGTH, sizeof(char));
             strcpy(id_orig, tokens[1]);
             strcpy(id_dest, tokens[2]);
             strcpy(id_rel, tokens[3]);
@@ -123,9 +125,9 @@ int main(int argc, char *argv[])
                 free(id_rel);
             }         
         } else if (strncmp(command, "delrel", 7) == 0) {
-            id_orig = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
-            id_dest = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
-            id_rel = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
+            id_orig = calloc(DEFAULT_STRING_LENGTH, sizeof(char));
+            id_dest = calloc(DEFAULT_STRING_LENGTH, sizeof(char));
+            id_rel = calloc(DEFAULT_STRING_LENGTH, sizeof(char));
             strcpy(id_orig, tokens[1]);
             strcpy(id_dest, tokens[2]);
             strcpy(id_rel, tokens[3]);
@@ -331,9 +333,9 @@ int rb_insert(struct rb_node **rb_root, struct rb_node *new)
     while (x != t_nil) {
         y = x;
         
-        if (strcmp(new->key, x->key) < 0)
+        if (memcmp(new->key, x->key, DEFAULT_STRING_LENGTH) < 0)
             x = x->left;
-        else if (strcmp(new->key, x->key) > 0)
+        else if (memcmp(new->key, x->key, DEFAULT_STRING_LENGTH) > 0)
             x = x->right;
         else
             return 0; /* Avoid key duplicates */
@@ -342,7 +344,7 @@ int rb_insert(struct rb_node **rb_root, struct rb_node *new)
     
     if (y == t_nil)
         *rb_root = new; /* Empty tree */
-    else if (strcmp(new->key, y->key) < 0)
+    else if (memcmp(new->key, y->key, DEFAULT_STRING_LENGTH) < 0)
         y->left = new;
     else
         y->right = new;
@@ -492,9 +494,9 @@ void rb_delete_fixup(struct rb_node **rb_root, struct rb_node *x)
 
 struct rb_node *rb_search(struct rb_node **rb_root, char *key)
 {
-    if (*rb_root == t_nil || strcmp(key, (*rb_root)->key) == 0)
+    if (*rb_root == t_nil || memcmp(key, (*rb_root)->key, DEFAULT_STRING_LENGTH) == 0)
         return *rb_root;
-    if (strcmp(key, (*rb_root)->key) < 0)
+    if (memcmp(key, (*rb_root)->key, DEFAULT_STRING_LENGTH) < 0)
         return rb_search(&(*rb_root)->left, key);
     else
         return rb_search(&(*rb_root)->right, key);
@@ -684,18 +686,16 @@ void print_report(struct rb_node *rb_root)
     
     if (rb_root->size != 0) {
         if (first_print == 1) {
-            fputc('"', stdout);
             fputs(rb_root->key, stdout);
-            fputc('"', stdout);
             first_print = 0;
         } else {
             fputc(' ', stdout);
-            fputc('"', stdout);
             fputs(rb_root->key, stdout);   
-            fputc('"', stdout);
         }
         print_report_nested(rb_root->nested);
-        printf(" %d;", rb_root->size);
+        fputc(' ', stdout);
+        fputui(rb_root->size);
+        fputc(';', stdout);
     }
     
     print_report(rb_root->right);
@@ -703,14 +703,19 @@ void print_report(struct rb_node *rb_root)
 
 void print_report_nested(struct rb_node *rb_root)
 {
-    if (rb_root == t_nil)
+    if (rb_root == t_nil) 
         return;
     print_report_nested(rb_root->left);
     fputc(' ', stdout);
-    fputc('"', stdout);
     fputs(rb_root->key, stdout);
-    fputc('"', stdout);
     print_report_nested(rb_root->right);
+}
+
+void fputui(unsigned int num)
+{
+    if (num >= 10)
+        fputui(num / 10);
+    fputc('0' + num % 10, stdout);
 }
 
 void readLine(char **str)
@@ -718,18 +723,7 @@ void readLine(char **str)
     if (fgets(*str, DEFAULT_LINE_LENGTH, stdin) != NULL);
 }
 
-/*void readLine(char **str)
-{
-    int ch;
-    int i = 0;
-    
-    while ((ch = getchar()) != '\n' && ch != EOF) {
-        (*str)[i++] = ch;
-    }
-    (*str)[i] = '\0';
-}*/
-
-void tokenize(char *str, char **tokens)
+void tokenize(char *str)
 {
     int i = 0;
     char *tok;
@@ -737,9 +731,7 @@ void tokenize(char *str, char **tokens)
     tok = strtok(tok, " ");
     
     while (tok != NULL) {
-        if (*tok != ' ') {
-            tokens[i++] = tok;
-        }
-        tok = strtok(NULL, "\"");
+        tokens[i++] = tok;
+        tok = strtok(NULL, " ");
     }
 }
