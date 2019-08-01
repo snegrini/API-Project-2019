@@ -66,7 +66,7 @@ void fputui(unsigned int num);
 /*
  * Input functions
  */
-void readline();
+char *readline();
 void tokenize();
 
 int main(int argc, char *argv[])
@@ -707,9 +707,9 @@ void fputui(unsigned int num)
     fputc('0' + num % 10, stdout);
 }
 
-void readline()
+char *readline()
 {
-    if (fgets(line, DEFAULT_LINE_LENGTH, stdin) != NULL);
+    return fgets(line, DEFAULT_LINE_LENGTH, stdin);
 }
 
 void tokenize()
