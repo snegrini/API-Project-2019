@@ -8,6 +8,11 @@
 #define RED     0
 #define BLACK   1
 
+struct str_node {
+    char *str;
+    size_t size;
+};
+
 struct rb_node {
     char *key;
     unsigned int size;
@@ -29,8 +34,7 @@ struct rb_node leaf;
 struct rb_node *t_nil;
 int first_print;
 int need_report_update;
-char *line;
-char *tokens[4];
+struct str_node tokens[4];
 struct rb_node *ent_rb_root; /* Store all entities before relations are created. */
 struct rb_node *rel_rb_root;
 struct rb_node *report_rb_root;
@@ -59,8 +63,7 @@ void fputui(unsigned int num);
 /*
  * Input functions
  */
-char *readline();
-void tokenize();
+int readline();
 
 /*
  * RB Tree functions
@@ -76,7 +79,6 @@ struct rb_node *tree_minimum(struct rb_node *node);
 struct rb_node *tree_successor(struct rb_node *node);
 struct rb_node *rb_create_insert_node(struct rb_node **rb_root, char *id_ent);
 void rb_free(struct rb_node **rb_root, int clear_id_ent);
-
 
 
 int main(void)
@@ -99,28 +101,31 @@ int main(void)
     rel_rb_root->nested = t_nil;
     rel_rb_root->nested->nested = t_nil;
     report_rb_root = t_nil;
-    line = malloc(sizeof(char) * DEFAULT_LINE_LENGTH);
+    
+    for (size_t i = 0; i < 4; i++) {
+        tokens[i].size = 0;
+        tokens[i].str  = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
+    }
     
     do {
         readline();
-        tokenize();
-        memcpy(command, tokens[0], 7);
+        memcpy(command, tokens[0].str, tokens[0].size);
                 
         if (strncmp(command, "addent", 7) == 0) {
-            id_ent = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
-            strcpy(id_ent, tokens[1]);
+            id_ent = malloc(sizeof(char) * tokens[1].size);
+            strcpy(id_ent, tokens[1].str);
             addent(id_ent);
         } else if (strncmp(command, "delent", 7) == 0) {
             id_ent = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
-            strcpy(id_ent, tokens[1]);
+            strcpy(id_ent, tokens[1].str);
             delent(id_ent);
         } else if (strncmp(command, "addrel", 7) == 0) {
-            id_orig = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
-            id_dest = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
-            id_rel = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
-            strcpy(id_orig, tokens[1]);
-            strcpy(id_dest, tokens[2]);
-            strcpy(id_rel, tokens[3]);
+            id_orig = malloc(sizeof(char) * tokens[1].size);
+            id_dest = malloc(sizeof(char) * tokens[2].size);
+            id_rel = malloc(sizeof(char) * tokens[3].size);
+            strcpy(id_orig, tokens[1].str);
+            strcpy(id_dest, tokens[2].str);
+            strcpy(id_rel, tokens[3].str);
             
             /* Verifico che le entità della relazione siano monitorate. */           
             if (rb_search(ent_rb_root, id_orig) != t_nil
@@ -132,12 +137,12 @@ int main(void)
                 free(id_rel);
             }         
         } else if (strncmp(command, "delrel", 7) == 0) {
-            id_orig = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
-            id_dest = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
-            id_rel = malloc(sizeof(char) * DEFAULT_STRING_LENGTH);
-            strcpy(id_orig, tokens[1]);
-            strcpy(id_dest, tokens[2]);
-            strcpy(id_rel, tokens[3]);
+            id_orig = malloc(sizeof(char) * tokens[1].size);
+            id_dest = malloc(sizeof(char) * tokens[2].size);
+            id_rel = malloc(sizeof(char) * tokens[3].size);
+            strcpy(id_orig, tokens[1].str);
+            strcpy(id_dest, tokens[2].str);
+            strcpy(id_rel, tokens[3].str);
             
             delrel(id_orig, id_dest, id_rel);
         } else if (strncmp(command, "report", 7) == 0) {
@@ -145,7 +150,9 @@ int main(void)
         }
     } while (strncmp(command, "end", 4) != 0);
     
-    free(line);
+    for (size_t i = 0; i < 4; i++) {
+        free(tokens[i].str);
+    }
     rb_free(&ent_rb_root, 1);
     rb_free(&rel_rb_root, 1);
     rb_free(&report_rb_root, 0);
@@ -450,22 +457,20 @@ void fputui(unsigned int num)
     fputc('0' + num % 10, stdout);
 }
 
-char *readline()
+int readline()
 {
-    return fgets(line, DEFAULT_LINE_LENGTH, stdin);
-}
-
-void tokenize()
-{
-    int i = 0;
-    char *tok;
-    tok = strtok(line, "\n");
-    tok = strtok(tok, " ");
+    int ch, i = 0, j = 0;
     
-    while (tok != NULL) {
-        tokens[i++] = tok;
-        tok = strtok(NULL, " ");
+    while ((ch = getchar()) != '\n' && ch != EOF) {
+        if (ch == ' ') {
+            tokens[i++].str[j] = '\0';
+            j = 0;
+        } else {
+            tokens[i].str[j++] = ch;
+        }
     }
+    tokens[i].str[j] = '\0';
+    return i;
 }
 
 /*
