@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DEFAULT_LINE_LENGTH   110
 #define DEFAULT_STRING_LENGTH   35
 
 #define RED     0
