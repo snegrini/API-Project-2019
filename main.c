@@ -8,6 +8,23 @@
 #define RED     0
 #define BLACK   1
 
+struct rb_node_basic {
+    char *key;
+    int color;
+    struct rb_node_basic *parent;
+    struct rb_node_basic *left;
+    struct rb_node_basic *right;
+};
+
+struct rb_node_report {
+    char *key;
+    int color;
+    struct rb_node_basic *nested;
+    struct rb_node_report *parent;
+    struct rb_node_report *left;
+    struct rb_node_report *right;
+};
+
 struct rb_node {
     char *key;
     unsigned int size;
@@ -21,6 +38,10 @@ struct rb_node {
 /*
  * Global variables
  */
+struct rb_node leaf_basic;
+struct rb_node *t_nil_basic;
+struct rb_node leaf_report;
+struct rb_node *t_nil_report;
 struct rb_node leaf;
 struct rb_node *t_nil;
 int first_print;
@@ -41,19 +62,8 @@ void delrel(char *id_orig, char *id_dest, char *id_rel);
 void report();
 
 /*
- * RB Tree functions
+ * Utility functions
  */
-int rb_insert(struct rb_node **rb_root, struct rb_node *new);
-void rb_insert_fixup(struct rb_node **rb_root, struct rb_node *z);
-struct rb_node *rb_delete(struct rb_node **rb_root, struct rb_node *node);
-void rb_delete_fixup(struct rb_node **rb_root, struct rb_node *x);
-struct rb_node *rb_search(struct rb_node *rb_root, char *key);
-void rotate_left(struct rb_node **rb_root, struct rb_node *x);
-void rotate_right(struct rb_node **rb_root, struct rb_node *x);
-struct rb_node *tree_minimum(struct rb_node *node);
-struct rb_node *tree_successor(struct rb_node *node);
-struct rb_node *rb_create_insert_node(struct rb_node **rb_root, char *id_ent);
-void rb_free(struct rb_node **rb_root, int clear_id_ent);
 void build_report(struct rb_node *rb_root);
 void update_report(struct rb_node *node_rep, char *id_dest, unsigned int size);
 void rb_visit_nested_inorder(struct rb_node *node_rep, struct rb_node *node_dest);
@@ -69,6 +79,53 @@ void fputui(unsigned int num);
 char *readline();
 void tokenize();
 
+/*
+ * RB Tree Basic functions
+ */
+int rb_insert_basic(struct rb_node_basic **rb_root, struct rb_node_basic *new);
+void rb_insert_fixup_basic(struct rb_node_basic **rb_root, struct rb_node_basic *z);
+struct rb_node_basic *rb_delete_basic(struct rb_node_basic **rb_root, struct rb_node_basic *node);
+void rb_delete_fixup_basic(struct rb_node_basic **rb_root, struct rb_node_basic *x);
+struct rb_node_basic *rb_search_basic(struct rb_node_basic *rb_root, char *key);
+void rotate_left_basic(struct rb_node_basic **rb_root, struct rb_node_basic *x);
+void rotate_right_basic(struct rb_node_basic **rb_root, struct rb_node_basic *x);
+struct rb_node_basic *tree_minimum_basic(struct rb_node_basic *node);
+struct rb_node_basic *tree_successor_basic(struct rb_node_basic *node);
+struct rb_node_basic *rb_create_insert_node_basic(struct rb_node_basic **rb_root, char *id_ent);
+void rb_free_basic(struct rb_node_basic **rb_root, int clear_id_ent);
+
+/*
+ * RB Tree Report functions
+ */
+int rb_insert_report(struct rb_node_report **rb_root, struct rb_node_report *new);
+void rb_insert_fixup_report(struct rb_node_report **rb_root, struct rb_node_report *z);
+struct rb_node_report *rb_delete_report(struct rb_node_report **rb_root, struct rb_node_report *node);
+void rb_delete_fixup_report(struct rb_node_report **rb_root, struct rb_node_report *x);
+struct rb_node_report *rb_search_report(struct rb_node_report *rb_root, char *key);
+void rotate_left_report(struct rb_node_report **rb_root, struct rb_node_report *x);
+void rotate_right_report(struct rb_node_report **rb_root, struct rb_node_report *x);
+struct rb_node_report *tree_minimum_report(struct rb_node_report *node);
+struct rb_node_report *tree_successor_report(struct rb_node_report *node);
+struct rb_node_report *rb_create_insert_node_report(struct rb_node_report **rb_root, char *id_ent);
+void rb_free_report(struct rb_node_report **rb_root, int clear_id_ent);
+
+/*
+ * RB Tree functions
+ */
+int rb_insert(struct rb_node **rb_root, struct rb_node *new);
+void rb_insert_fixup(struct rb_node **rb_root, struct rb_node *z);
+struct rb_node *rb_delete(struct rb_node **rb_root, struct rb_node *node);
+void rb_delete_fixup(struct rb_node **rb_root, struct rb_node *x);
+struct rb_node *rb_search(struct rb_node *rb_root, char *key);
+void rotate_left(struct rb_node **rb_root, struct rb_node *x);
+void rotate_right(struct rb_node **rb_root, struct rb_node *x);
+struct rb_node *tree_minimum(struct rb_node *node);
+struct rb_node *tree_successor(struct rb_node *node);
+struct rb_node *rb_create_insert_node(struct rb_node **rb_root, char *id_ent);
+void rb_free(struct rb_node **rb_root, int clear_id_ent);
+
+
+
 int main(void)
 {
     char command[8];    
@@ -78,9 +135,13 @@ int main(void)
     char *id_rel  = NULL;
     
     /*
-     * Initialize gloval vars
+     * Initialize global vars
      */
-    t_nil = &leaf;
+    t_nil_basic = &leaf_basic;
+    t_nil_basic->color = BLACK; /* Set t_nil (leaf) color to BLACK */
+    t_nil_report = &leaf_report;
+    t_nil_report->color = BLACK; /* Set t_nil (leaf) color to BLACK */
+    t_nil_report = &leaf_report;
     t_nil->color = BLACK; /* Set t_nil (leaf) color to BLACK */
     first_print = 1;
     need_report_update = 0;
@@ -303,6 +364,432 @@ void report()
     }
     fputc('\n', stdout);
 }
+
+
+void build_report(struct rb_node *rb_root)
+{   
+    struct rb_node *node_rep;
+    
+    if (rb_root == t_nil)
+        return;
+    
+    build_report(rb_root->left);
+        
+    if (rb_root != t_nil) {
+        node_rep = rb_create_insert_node(&report_rb_root, rb_root->key);
+        rb_visit_nested_inorder(node_rep, rb_root->nested);
+    }
+    
+    build_report(rb_root->right);
+}
+
+void update_report(struct rb_node *node_rep, char *id_dest, unsigned int size)
+{
+    /* Se ho un nuovo max_size, azzero l'albero */
+    if (size == node_rep->size) {
+        rb_create_insert_node(&node_rep->nested, id_dest);
+    } else if (size > node_rep->size) {
+        rb_free(&node_rep->nested, 0);
+        rb_create_insert_node(&node_rep->nested, id_dest);
+        node_rep->size = size;
+    }
+}
+
+void rb_visit_nested_inorder(struct rb_node *node_rep, struct rb_node *node_dest)
+{   
+    if (node_dest == t_nil)
+        return;
+    
+    rb_visit_nested_inorder(node_rep, node_dest->right);
+    
+    if (node_dest->size != 0) {
+        /* Se ho un nuovo max_size, azzero l'albero */
+        if (node_dest->size == node_rep->size) {
+            rb_create_insert_node(&node_rep->nested, node_dest->key);
+        } else if (node_dest->size > node_rep->size) {
+            rb_free(&node_rep->nested, 0);
+            rb_create_insert_node(&node_rep->nested, node_dest->key);
+            node_rep->size = node_dest->size;
+        }
+    }
+    
+    rb_visit_nested_inorder(node_rep, node_dest->left);
+}
+
+void rb_delete_ent_from_rel(struct rb_node **curr_rb_root, char *id_ent)
+{
+    struct rb_node *node_tmp;
+
+    if (*curr_rb_root == t_nil)
+        return;
+    rb_delete_ent_from_rel(&(*curr_rb_root)->left, id_ent);
+    rb_delete_ent_from_rel(&(*curr_rb_root)->right, id_ent);
+    
+    /* 
+    * Cerco l'entità nell'albero rb_dest di ogni relazione,
+    * se la trovo la elimino ed elimino anche l'albero rb_orig associato.
+    */
+    node_tmp = rb_search((*curr_rb_root)->nested, id_ent);
+    if (node_tmp != t_nil) {
+        free(node_tmp->key);
+        rb_free(&node_tmp->nested, 1);
+        node_tmp = rb_delete(&(*curr_rb_root)->nested, node_tmp);
+        free(node_tmp);
+    }
+    /* Cerco l'entità nell'albero rb_orig di ogni rb_dest */
+    rb_delete_ent_from_rel_nested(&(*curr_rb_root)->nested, id_ent);
+    
+    
+}
+
+void rb_delete_ent_from_rel_nested(struct rb_node **curr_rb_root, char *id_ent)
+{
+    struct rb_node *node_tmp;
+    
+    if (*curr_rb_root == t_nil)
+        return;
+    rb_delete_ent_from_rel_nested(&(*curr_rb_root)->left, id_ent);
+    /* Cerco l'entità nell'albero rb_orig, se la trovo la elimino */
+    node_tmp = rb_search((*curr_rb_root)->nested, id_ent);
+    if (node_tmp != t_nil) {
+        free(node_tmp->key);
+        node_tmp = rb_delete(&(*curr_rb_root)->nested, node_tmp);
+        (*curr_rb_root)->size = (*curr_rb_root)->size - 1;
+        free(node_tmp);
+    }
+    rb_delete_ent_from_rel_nested(&(*curr_rb_root)->right, id_ent);
+}
+
+void print_report(struct rb_node *rb_root)
+{  
+    if (rb_root == t_nil)
+        return;
+    
+    print_report(rb_root->left);
+    
+    if (rb_root->size != 0) {
+        if (first_print == 1) {
+            fputs(rb_root->key, stdout);
+            first_print = 0;
+        } else {
+            fputc(' ', stdout);
+            fputs(rb_root->key, stdout);   
+        }
+        print_report_nested(rb_root->nested);
+        fputc(' ', stdout);
+        fputui(rb_root->size);
+        fputc(';', stdout);
+    }
+    
+    print_report(rb_root->right);
+}
+
+void print_report_nested(struct rb_node *rb_root)
+{
+    if (rb_root == t_nil) 
+        return;
+    print_report_nested(rb_root->left);
+    fputc(' ', stdout);
+    fputs(rb_root->key, stdout);
+    print_report_nested(rb_root->right);
+}
+
+void fputui(unsigned int num)
+{
+    if (num >= 10)
+        fputui(num / 10);
+    fputc('0' + num % 10, stdout);
+}
+
+char *readline()
+{
+    return fgets(line, DEFAULT_LINE_LENGTH, stdin);
+}
+
+void tokenize()
+{
+    int i = 0;
+    char *tok;
+    tok = strtok(line, "\n");
+    tok = strtok(tok, " ");
+    
+    while (tok != NULL) {
+        tokens[i++] = tok;
+        tok = strtok(NULL, " ");
+    }
+}
+
+
+/*
+ * @return:
+ * 0 nessun inserimento, key già presente
+ * 1 nuovo inserimento
+ */
+int rb_insert_basic(struct rb_node_basic **rb_root, struct rb_node_basic *new)
+{
+    struct rb_node_basic *x = *rb_root;
+    struct rb_node_basic *y = t_nil;
+    
+    while (x != t_nil) {
+        y = x;
+        
+        if (strcmp(new->key, x->key) < 0)
+            x = x->left;
+        else if (strcmp(new->key, x->key) > 0)
+            x = x->right;
+        else
+            return 0; /* Avoid key duplicates */
+    }
+    new->parent = y;
+    
+    if (y == t_nil)
+        *rb_root = new; /* Empty tree */
+    else if (strcmp(new->key, y->key) < 0)
+        y->left = new;
+    else
+        y->right = new;
+
+    new->left  = t_nil;
+    new->right = t_nil;
+    new->color = RED;
+    rb_insert_fixup_basic(rb_root, new);
+
+    return 1;
+}
+
+void rb_insert_fixup_basic(struct rb_node_basic **rb_root, struct rb_node_basic *z)
+{
+    struct rb_node_basic *x, *y;
+    
+    if (z == *rb_root) {
+        (*rb_root)->color = BLACK;
+    } else {
+        x = z->parent;
+        if (x->color == RED) {
+            if (x == x->parent->left) {
+                y = x->parent->right;
+                if (y->color == RED) {
+                    x->color = BLACK;
+                    y->color = BLACK;
+                    x->parent->color = RED;
+                    rb_insert_fixup_basic(rb_root, x->parent);
+                } else {
+                    if (z == x->right) {
+                        z = x;
+                        rotate_left_basic(rb_root, z);
+                        x = z->parent;
+                    }
+                    x->color = BLACK;
+                    x->parent->color = RED;
+                    rotate_right_basic(rb_root, x->parent);
+                }
+            } else {
+                 y = x->parent->left;
+                if (y->color == RED) {
+                    x->color = BLACK;
+                    y->color = BLACK;
+                    x->parent->color = RED;
+                    rb_insert_fixup_basic(rb_root, x->parent);
+                } else {
+                    if (z == x->left) {
+                        z = x;
+                        rotate_right_basic(rb_root, z);
+                        x = z->parent;
+                    }
+                    x->color = BLACK;
+                    x->parent->color = RED;
+                    rotate_left_basic(rb_root, x->parent);
+                }
+            }
+        }
+    }
+}
+
+struct rb_node_basic *rb_delete_basic(struct rb_node_basic **rb_root, struct rb_node_basic *node)
+{
+    struct rb_node_basic *x, *y;
+    
+    if (node->left == t_nil || node->right == t_nil)
+        y = node;
+    else
+        y = tree_successor_basic(node);
+    if (y->left != t_nil)
+        x = y->left;
+    else
+        x = y->right;
+
+    x->parent = y->parent;
+    if (y->parent == t_nil)
+        *rb_root = x;
+    else if (y == y->parent->left)
+        y->parent->left = x;
+    else
+        y->parent->right = x;
+    
+    if (y != node) {
+        node->key = y->key;
+        node->size = y->size;
+        node->nested = y->nested;
+    }
+    if (y->color == BLACK)
+        rb_delete_fixup_basic(rb_root, x);
+    return y;
+}
+
+void rb_delete_fixup_basic(struct rb_node_basic **rb_root, struct rb_node_basic *x)
+{
+    struct rb_node_basic *w;
+    
+    if (x->color == RED || x->parent == t_nil) {
+        x->color = BLACK;
+    } else if (x == x->parent->left) {
+        w = x->parent->right;
+        if (w->color == RED) {
+            w->color = BLACK;
+            x->parent->color = RED;
+            rotate_left_basic(rb_root, x->parent);
+            w = x->parent->right;
+        } 
+        if (w->left->color == BLACK && w->right->color == BLACK) {
+            w->color = RED;
+            rb_delete_fixup_basic(rb_root, x->parent);
+        } else {
+            if (w->right->color == BLACK) {
+                w->left->color = BLACK;
+                w->color = RED;
+                rotate_right_basic(rb_root, w);
+                w = x->parent->right;
+            }
+            w->color = x->parent->color;
+            x->parent->color = BLACK;
+            w->right->color = BLACK;
+            rotate_left_basic(rb_root, x->parent);
+        }
+    } else {
+         w = x->parent->left;
+        if (w->color == RED) {
+            w->color = BLACK;
+            x->parent->color = RED;
+            rotate_right_basic(rb_root, x->parent);
+            w = x->parent->left;
+        } 
+        if (w->right->color == BLACK && w->left->color == BLACK) {
+            w->color = RED;
+            rb_delete_fixup_basic(rb_root, x->parent);
+        } else {
+            if (w->left->color == BLACK) {
+                w->right->color = BLACK;
+                w->color = RED;
+                rotate_left_basic(rb_root, w);
+                w = x->parent->left;
+            }
+            w->color = x->parent->color;
+            x->parent->color = BLACK;
+            w->left->color = BLACK;
+            rotate_right_basic(rb_root, x->parent);
+        }
+        
+    }
+}
+
+struct rb_node_basic *rb_search_basic(struct rb_node_basic *rb_root, char *key)
+{
+    while (rb_root != t_nil) {
+        if (strcmp(key, rb_root->key) == 0)
+            return rb_root;
+        else if (strcmp(key, rb_root->key) < 0)
+            rb_root = rb_root->left;
+        else
+            rb_root = rb_root->right;
+    }
+    return t_nil;
+}
+
+void rotate_left_basic(struct rb_node_basic **rb_root, struct rb_node_basic *x)
+{
+    struct rb_node_basic *y = x->right;
+    x->right = y->left;
+    
+    if (y->left != t_nil)
+        y->left->parent = x;
+    y->parent = x->parent;
+    if (x->parent == t_nil)
+        *rb_root = y;
+    else if (x == x->parent->left)
+        x->parent->left = y;
+    else
+        x->parent->right = y;
+    y->left = x;
+    x->parent = y;
+}
+
+void rotate_right_basic(struct rb_node_basic **rb_root, struct rb_node_basic *x)
+{
+    struct rb_node_basic *y = x->left;
+    x->left = y->right;
+    
+    if (y->right != t_nil)
+        y->right->parent = x;
+    y->parent = x->parent;
+    if (x->parent == t_nil)
+        *rb_root = y;
+    else if (x == x->parent->right)
+        x->parent->right = y;
+    else
+        x->parent->left = y;
+    y->right = x;
+    x->parent = y;
+}
+
+struct rb_node_basic *tree_minimum_basic(struct rb_node_basic *node) 
+{
+    while (node->left != t_nil)
+        node = node->left;
+    return node;
+}
+
+struct rb_node_basic *tree_successor_basic(struct rb_node_basic *node)
+{
+    struct rb_node *y;
+    
+    if (node->right != t_nil)
+        return tree_minimum(node->right);
+    y = node->parent;
+    while (y != t_nil && node == y->right) {
+        node = y;
+        y = y->parent;
+    }
+    return y;
+}
+
+struct rb_node_basic *rb_create_insert_node_basic(struct rb_node_basic **rb_root, char *id_ent)
+{
+    struct rb_node_basic *node_ent = malloc(sizeof(struct rb_node_basic));
+    node_ent->key = id_ent;
+    node_ent->size = 0;
+    node_ent->nested = t_nil;
+    if (rb_insert_basic(rb_root, node_ent) == 1)
+        return node_ent;
+    free(node_ent);
+    return t_nil;
+}
+
+void rb_free_basic(struct rb_node_basic **rb_root, int clear_id_ent)
+{
+    if (*rb_root == t_nil_basic)
+        return;
+    
+    rb_free(&(*rb_root)->left, clear_id_ent);
+    rb_free(&(*rb_root)->right, clear_id_ent);
+    if ((*rb_root)->nested != t_nil_basic)
+        rb_free(&(*rb_root)->nested, clear_id_ent);
+
+    if (clear_id_ent == 1)
+        free((*rb_root)->key);
+    free(*rb_root);
+    *rb_root = t_nil_basic;
+}
+
 
 /*
  * @return:
@@ -572,155 +1059,4 @@ void rb_free(struct rb_node **rb_root, int clear_id_ent)
         free((*rb_root)->key);
     free(*rb_root);
     *rb_root = t_nil;
-}
-
-void build_report(struct rb_node *rb_root)
-{   
-    struct rb_node *node_rep;
-    
-    if (rb_root == t_nil)
-        return;
-    
-    build_report(rb_root->left);
-        
-    if (rb_root != t_nil) {
-        node_rep = rb_create_insert_node(&report_rb_root, rb_root->key);
-        rb_visit_nested_inorder(node_rep, rb_root->nested);
-    }
-    
-    build_report(rb_root->right);
-}
-
-void update_report(struct rb_node *node_rep, char *id_dest, unsigned int size)
-{
-    /* Se ho un nuovo max_size, azzero l'albero */
-    if (size == node_rep->size) {
-        rb_create_insert_node(&node_rep->nested, id_dest);
-    } else if (size > node_rep->size) {
-        rb_free(&node_rep->nested, 0);
-        rb_create_insert_node(&node_rep->nested, id_dest);
-        node_rep->size = size;
-    }
-}
-
-void rb_visit_nested_inorder(struct rb_node *node_rep, struct rb_node *node_dest)
-{   
-    if (node_dest == t_nil)
-        return;
-    
-    rb_visit_nested_inorder(node_rep, node_dest->right);
-    
-    if (node_dest->size != 0) {
-        /* Se ho un nuovo max_size, azzero l'albero */
-        if (node_dest->size == node_rep->size) {
-            rb_create_insert_node(&node_rep->nested, node_dest->key);
-        } else if (node_dest->size > node_rep->size) {
-            rb_free(&node_rep->nested, 0);
-            rb_create_insert_node(&node_rep->nested, node_dest->key);
-            node_rep->size = node_dest->size;
-        }
-    }
-    
-    rb_visit_nested_inorder(node_rep, node_dest->left);
-}
-
-void rb_delete_ent_from_rel(struct rb_node **curr_rb_root, char *id_ent)
-{
-    struct rb_node *node_tmp;
-
-    if (*curr_rb_root != t_nil) {
-        rb_delete_ent_from_rel(&(*curr_rb_root)->left, id_ent);
-        rb_delete_ent_from_rel(&(*curr_rb_root)->right, id_ent);
-        /* 
-         * Cerco l'entità nell'albero rb_dest di ogni relazione,
-         * se la trovo la elimino ed elimino anche l'albero rb_orig associato.
-         */
-        node_tmp = rb_search((*curr_rb_root)->nested, id_ent);
-        if (node_tmp != t_nil) {
-            free(node_tmp->key);
-            rb_free(&node_tmp->nested, 1);
-            node_tmp = rb_delete(&(*curr_rb_root)->nested, node_tmp);
-            free(node_tmp);
-        }
-        
-        /* Cerco l'entità nell'albero rb_orig di ogni rb_dest */
-        rb_delete_ent_from_rel_nested(&(*curr_rb_root)->nested, id_ent);
-    }
-}
-
-void rb_delete_ent_from_rel_nested(struct rb_node **curr_rb_root, char *id_ent)
-{
-    struct rb_node *node_tmp;
-    if (*curr_rb_root != t_nil) {
-        rb_delete_ent_from_rel_nested(&(*curr_rb_root)->left, id_ent);
-        rb_delete_ent_from_rel_nested(&(*curr_rb_root)->right, id_ent);
-
-        /* Cerco l'entità nell'albero rb_orig, se la trovo la elimino */
-        node_tmp = rb_search((*curr_rb_root)->nested, id_ent);
-        if (node_tmp != t_nil) {
-            free(node_tmp->key);
-            node_tmp = rb_delete(&(*curr_rb_root)->nested, node_tmp);
-            (*curr_rb_root)->size = (*curr_rb_root)->size - 1;
-            free(node_tmp);
-        }
-    }
-}
-
-void print_report(struct rb_node *rb_root)
-{
-    if (rb_root == t_nil)
-        return;
-    
-    print_report(rb_root->left);
-    
-    if (rb_root->size != 0) {
-        if (first_print == 1) {
-            fputs(rb_root->key, stdout);
-            first_print = 0;
-        } else {
-            fputc(' ', stdout);
-            fputs(rb_root->key, stdout);   
-        }
-        print_report_nested(rb_root->nested);
-        fputc(' ', stdout);
-        fputui(rb_root->size);
-        fputc(';', stdout);
-    }
-    
-    print_report(rb_root->right);
-}
-
-void print_report_nested(struct rb_node *rb_root)
-{
-    if (rb_root == t_nil) 
-        return;
-    print_report_nested(rb_root->left);
-    fputc(' ', stdout);
-    fputs(rb_root->key, stdout);
-    print_report_nested(rb_root->right);
-}
-
-void fputui(unsigned int num)
-{
-    if (num >= 10)
-        fputui(num / 10);
-    fputc('0' + num % 10, stdout);
-}
-
-char *readline()
-{
-    return fgets(line, DEFAULT_LINE_LENGTH, stdin);
-}
-
-void tokenize()
-{
-    int i = 0;
-    char *tok;
-    tok = strtok(line, "\n");
-    tok = strtok(tok, " ");
-    
-    while (tok != NULL) {
-        tokens[i++] = tok;
-        tok = strtok(NULL, " ");
-    }
 }
