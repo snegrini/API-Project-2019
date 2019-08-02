@@ -463,13 +463,15 @@ int readline()
     
     while ((ch = getchar()) != '\n' && ch != EOF) {
         if (ch == ' ') {
-            tokens[i++].str[j] = '\0';
+            tokens[i].str[j++] = '\0';
+            tokens[i++].size = j;
             j = 0;
         } else {
             tokens[i].str[j++] = ch;
         }
     }
-    tokens[i].str[j] = '\0';
+    tokens[i].str[j++] = '\0';
+    tokens[i].size     = j;
     return i;
 }
 
