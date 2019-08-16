@@ -120,7 +120,7 @@ int main(void)
             strcpy(id_dest, tokens[2].str);
             strcpy(id_rel, tokens[3].str);
             
-            /* Verifico che le entità della relazione siano monitorate. */           
+            /* Checking that the entities of the relationship are monitored. */           
             if (rb_search(ent_rb_root, id_orig) != t_nil
                 && rb_search(ent_rb_root, id_dest) != t_nil) {
                 addrel(id_orig, id_dest, id_rel);
@@ -153,7 +153,7 @@ int main(void)
 void addent(char *id_ent)
 {
     if (rb_create_insert_node(&ent_rb_root, id_ent) == t_nil)
-        free(id_ent); /* Nessun inserimento, key già presente */
+        free(id_ent); /* No entry, key already existent */
 }
 
 void delent(char *id_ent)
@@ -188,7 +188,7 @@ void addrel(char *id_orig, char *id_dest, char *id_rel)
     if (node_rel == t_nil) {
         node_rel = rb_create_insert_node(&rel_rb_root, id_rel);
         
-        /* The relation did not exist before. Have to create rb_dest and rb_orig */
+        /* The relation did not exist before. Have to create rb_dest and rb_orig. */
         node_ent = rb_create_insert_node(&node_rel->nested, id_dest);
         ++node_ent->size;
         rb_create_insert_node(&node_rel->nested->nested, id_orig);
@@ -202,22 +202,16 @@ void addrel(char *id_orig, char *id_dest, char *id_rel)
     } else {
         /* 
          * The relation already exists.
-         * Checking if rb_dest exists, otherwise a new one is created
+         * Checking if rb_dest exists, otherwise a new one is created.
          */
-        free(id_rel); /* Non viene utilizzato se la relazione esiste già. */
+        free(id_rel); /* No more needed, relationship already exists. */
         node_ent = rb_search(node_rel->nested, id_dest);
         
         if (node_ent == t_nil) {      
-            /* 
-             * Inserisco nuovo nodo per l'entità id_dest e incremento la
-             * dimensione dell'albero id_orig.
-             */
+            /* Inserting new node for entity id_dest and increasing rb_orig size. */
             node_ent = rb_create_insert_node(&node_rel->nested, id_dest);
             ++node_ent->size;
-            /* 
-             * Non essendoci rb_dest, non sarà presente neanche il nodo in rb_orig,
-             * che va quindi creato.
-             */
+            /* Since there is no rb_dest, the node in rb_orig will not be present, so it must be created. */
             rb_create_insert_node(&node_ent->nested, id_orig);
             
             if (need_report_update == 0) {
@@ -226,12 +220,12 @@ void addrel(char *id_orig, char *id_dest, char *id_rel)
                 update_report(node_rep, node_ent->key, node_ent->size);
             }
         } else {
-            /*
-             * Cerco, se esiste, il nodo dell'entità id_orig.
-             * Se non esiste lo aggiungo nell'albero rb_orig.
-             * Se esiste, libero lo spazio della stringa id_orig e non faccio altro.
+            /* 
+             * Checking if the id_orig node exists:
+             * - if it does not exist, it is added to the rb_orig tree.
+             * - else, id_orig string is freed.
              */
-            free(id_dest); /* Il nodo rb_dest esiste già, non serve più */
+            free(id_dest); /* No more needed, rb_dest already exists. */
             if (rb_create_insert_node(&node_ent->nested, id_orig) != t_nil) {
                 ++node_ent->size;
                 if (need_report_update == 0) {
