@@ -48,7 +48,7 @@ void report();
  */
 void build_report(struct rb_node *rb_root);
 void update_report(struct rb_node *node_rep, char *id_dest, unsigned int size);
-void rb_visit_nested_inorder(struct rb_node *node_rep, struct rb_node *node_dest);
+void build_nested_report(struct rb_node *node_rep, struct rb_node *node_dest);
 void rb_delete_ent_from_rel(struct rb_node *curr_rb_root, char *id_ent);
 void rb_delete_ent_from_rel_nested(struct rb_node *curr_rb_root, char *id_ent);
 void print_report(struct rb_node *rb_root);
@@ -84,9 +84,7 @@ int main(void)
     char *id_dest = NULL;
     char *id_rel  = NULL;
     
-    /*
-     * Initialize global vars
-     */
+    /* Initialize global vars */
     t_nil = &leaf;
     t_nil->color = BLACK; /* Set t_nil (leaf) color to BLACK */
     first_print = 1;
@@ -150,12 +148,25 @@ int main(void)
     return 0;
 }
 
+/* 
+ * Adds an entity to the entity tree.
+ * Entity names are unique.
+ * 
+ * @param   id_ent  name of the entity to be added
+ */
 void addent(char *id_ent)
 {
     if (rb_create_insert_node(&ent_rb_root, id_ent) == t_nil)
         free(id_ent); /* No entry, key already existent */
 }
 
+/* 
+ * Deletes an entity from the entity tree.
+ * If an entity is deleted, a full report update is required
+ * and the need_report_update flag is set.
+ * 
+ * @param   id_ent  name of the entity to be deleted
+ */
 void delent(char *id_ent)
 {
     struct rb_node *node_tmp;
@@ -168,14 +179,19 @@ void delent(char *id_ent)
     }    
     if (rel_rb_root != t_nil) {
         rb_delete_ent_from_rel(rel_rb_root, id_ent);
-        /* Setting flag for report update */
-        need_report_update = 1;
+        need_report_update = 1; /* Setting flag for report update */
     }
     free(id_ent);
 }
 
 /*
- * Add a relation. If the relation is not existent, a new one is created.
+ * Adds a relation in the relationship tree.
+ * If the node relation is not existent, a new one is created.
+ * If a relation is added, the report tree gets updated.
+ * 
+ * @param   id_orig     name of the origin entity
+ * @param   id_dest     name of the destination entity
+ * @param   id_rel      name of the relationship to be added
  */
 void addrel(char *id_orig, char *id_dest, char *id_rel)
 {
@@ -241,6 +257,15 @@ void addrel(char *id_orig, char *id_dest, char *id_rel)
     
 }
 
+/*
+ * Deletes a relation from the relationship tree.
+ * If a relation is deleted, a full report update is required
+ * and the need_report_update flag is set.
+ * 
+ * @param   id_orig     name of the origin entity
+ * @param   id_dest     name of the destination entity
+ * @param   id_rel      name of the relationship to be added
+ */
 void delrel(char *id_orig, char *id_dest, char *id_rel)
 {
     struct rb_node *node_rel, *node_dest, *node_orig;
@@ -256,13 +281,13 @@ void delrel(char *id_orig, char *id_dest, char *id_rel)
                 free(node_orig);                
                 need_report_update = 1; /* Setting flag for report update */
                 
-                /* Se l'albero rb_orig è vuoto, elimino il nodo della entità destinazione */
+                /* If rb_orig tree is empty, rb_dest node is deleted */
                 if (node_dest->nested == t_nil) {
                     free(node_dest->key);
                     node_dest = rb_delete(&node_rel->nested, node_dest);
                     free(node_dest);
                     
-                    /* Se l'albero rb_dest è vuoto, elimino il nodo della relazione */
+                    /* If rb_dest tree is empty, rb_rel node is deleted */
                     if (node_rel->nested == t_nil) {
                         free(node_rel->key);
                         node_rel = rb_delete(&rel_rb_root, node_rel);
@@ -277,6 +302,10 @@ void delrel(char *id_orig, char *id_dest, char *id_rel)
     free(id_rel);
 }
 
+/*
+ * Updates the report tree if the need_report_update flag is set.
+ * Prints the report tree.
+ */
 void report()
 {
     if (rel_rb_root == t_nil) {
@@ -296,7 +325,12 @@ void report()
     fputc('\n', stdout);
 }
 
-
+/*
+ * Builds a new report tree.
+ * Calls a function to build nested rb_orig tree.
+ * 
+ * @param   rb_root     root of the tree to be builded
+ */
 void build_report(struct rb_node *rb_root)
 {   
     struct rb_node *node_rep;
@@ -307,15 +341,21 @@ void build_report(struct rb_node *rb_root)
 
     if (rb_root != t_nil) {
         node_rep = rb_create_insert_node(&report_rb_root, rb_root->key);
-        rb_visit_nested_inorder(node_rep, rb_root->nested);
+        build_nested_report(node_rep, rb_root->nested);
     }
 
     build_report(rb_root->right);
 }
 
+/*
+ * Updates report tree without rebuilding the whole tree.
+ * 
+ * @param   node_rep    node of the report tree to be updated
+ * @param   id_dest     name of the new entity destination to be added
+ * @param   size        new size of the report node
+ */
 void update_report(struct rb_node *node_rep, char *id_dest, unsigned int size)
 {
-    /* Se ho un nuovo max_size, azzero l'albero */
     if (size == node_rep->size) {
         rb_create_insert_node(&node_rep->nested, id_dest);
     } else if (size > node_rep->size) {
@@ -325,12 +365,17 @@ void update_report(struct rb_node *node_rep, char *id_dest, unsigned int size)
     }
 }
 
-void rb_visit_nested_inorder(struct rb_node *node_rep, struct rb_node *node_dest)
+/*
+ * Builds rb_orig report tree.
+ * 
+ * @param   rb_root     root of the rb_orig tree to be builded
+ */
+void build_nested_report(struct rb_node *node_rep, struct rb_node *node_dest)
 {   
     if (node_dest == t_nil)
         return;
     
-    rb_visit_nested_inorder(node_rep, node_dest->right);
+    build_nested_report(node_rep, node_dest->right);
     
     if (node_dest->size != 0) {
         /* Se ho un nuovo max_size, azzero l'albero */
@@ -343,7 +388,7 @@ void rb_visit_nested_inorder(struct rb_node *node_rep, struct rb_node *node_dest
         }
     }
     
-    rb_visit_nested_inorder(node_rep, node_dest->left);
+    build_nested_report(node_rep, node_dest->left);
 }
 
 void rb_delete_ent_from_rel(struct rb_node *curr_rb_root, char *id_ent)
@@ -387,6 +432,18 @@ void rb_delete_ent_from_rel_nested(struct rb_node *curr_rb_root, char *id_ent)
     rb_delete_ent_from_rel_nested(curr_rb_root->right, id_ent);
 }
 
+/* 
+ * Prints the report tree as follows:
+ * id_rel1 id_ent1_1 id_ent1_2 n_rel1; id_rel2 id_ent2_1 id_ent2_2 n_rel2; ...
+ * 
+ * Calls a function to print the nested rb_orig tree.
+ * 
+ * id_rel  name of the relation
+ * id_ent  name of the entity receiving the relation
+ * n_rel   number of relations received
+ * 
+ * @param   rb_root     root of the tree to be printed
+ */
 void print_report(struct rb_node *rb_root)
 {  
     if (rb_root == t_nil)
@@ -410,6 +467,11 @@ void print_report(struct rb_node *rb_root)
     print_report(rb_root->right);
 }
 
+/* 
+ * Print the rb_orig report tree.
+ * 
+ * @param   rb_root     root of the rb_orig tree to be printed
+ */
 void print_report_nested(struct rb_node *rb_root)
 {
     if (rb_root == t_nil) 
