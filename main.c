@@ -537,7 +537,7 @@ int readline()
 /*
  * Inserts a new node into the given RBT.
  * @return 	int		0 no entry, key already existing
- * 					1 new entry
+ *                  1 new entry
  */
 int rb_insert(struct rb_node **rb_root, struct rb_node *new)
 {
@@ -628,7 +628,7 @@ void rb_insert_fixup(struct rb_node **rb_root, struct rb_node *z)
  * Deletes a node from the given RBT.
  * @param 	rb_root
  * @param 	node
- * @return  rb_node		the deleted node
+ * @return  rb_node	    the deleted node
  */
 struct rb_node *rb_delete(struct rb_node **rb_root, struct rb_node *node)
 {
@@ -726,7 +726,7 @@ void rb_delete_fixup(struct rb_node **rb_root, struct rb_node *x)
  * Searches the key in the given RBT.
  * @param 	rb_root
  * @param 	node
- * @return  rb_node		the found node (with the corresponding key)
+ * @return  rb_node     the found node (with the corresponding key)
  */
 struct rb_node *rb_search(struct rb_node *rb_root, char *key)
 {
