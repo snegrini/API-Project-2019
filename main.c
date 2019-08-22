@@ -47,8 +47,8 @@ void report();
  * Utility functions
  */
 void build_report(struct rb_node *rb_root);
+void build_report_nested(struct rb_node *node_rep, struct rb_node *node_dest);
 void update_report(struct rb_node *node_rep, char *id_dest, unsigned int size);
-void build_nested_report(struct rb_node *node_rep, struct rb_node *node_dest);
 void rb_delete_ent_from_rel(struct rb_node *curr_rb_root, char *id_ent);
 void rb_delete_ent_from_rel_nested(struct rb_node *curr_rb_root, char *id_ent);
 void print_report(struct rb_node *rb_root);
@@ -341,10 +341,36 @@ void build_report(struct rb_node *rb_root)
 
     if (rb_root != t_nil) {
         node_rep = rb_create_insert_node(&report_rb_root, rb_root->key);
-        build_nested_report(node_rep, rb_root->nested);
+        build_report_nested(node_rep, rb_root->nested);
     }
 
     build_report(rb_root->right);
+}
+
+/*
+ * Builds rb_orig report tree.
+ * 
+ * @param   rb_root     root of the rb_orig tree to be builded
+ */
+void build_report_nested(struct rb_node *node_rep, struct rb_node *node_dest)
+{   
+    if (node_dest == t_nil)
+        return;
+    
+    build_report_nested(node_rep, node_dest->right);
+    
+    if (node_dest->size != 0) {
+        /* Se ho un nuovo max_size, azzero l'albero */
+        if (node_dest->size == node_rep->size) {
+            rb_create_insert_node(&node_rep->nested, node_dest->key);
+        } else if (node_dest->size > node_rep->size) {
+            rb_free(&node_rep->nested, 0);
+            rb_create_insert_node(&node_rep->nested, node_dest->key);
+            node_rep->size = node_dest->size;
+        }
+    }
+    
+    build_report_nested(node_rep, node_dest->left);
 }
 
 /*
@@ -366,31 +392,12 @@ void update_report(struct rb_node *node_rep, char *id_dest, unsigned int size)
 }
 
 /*
- * Builds rb_orig report tree.
+ * Deletes an entity from relation rb_dest tree.
+ * Calls a function to deletes entity in the nested rb_orig tree.
  * 
- * @param   rb_root     root of the rb_orig tree to be builded
+ * @param   curr_rb_root    node of the relation tree to be searched
+ * @param   id_ent     		name of the entity to be deleted
  */
-void build_nested_report(struct rb_node *node_rep, struct rb_node *node_dest)
-{   
-    if (node_dest == t_nil)
-        return;
-    
-    build_nested_report(node_rep, node_dest->right);
-    
-    if (node_dest->size != 0) {
-        /* Se ho un nuovo max_size, azzero l'albero */
-        if (node_dest->size == node_rep->size) {
-            rb_create_insert_node(&node_rep->nested, node_dest->key);
-        } else if (node_dest->size > node_rep->size) {
-            rb_free(&node_rep->nested, 0);
-            rb_create_insert_node(&node_rep->nested, node_dest->key);
-            node_rep->size = node_dest->size;
-        }
-    }
-    
-    build_nested_report(node_rep, node_dest->left);
-}
-
 void rb_delete_ent_from_rel(struct rb_node *curr_rb_root, char *id_ent)
 {
     struct rb_node *node_tmp;
@@ -400,8 +407,8 @@ void rb_delete_ent_from_rel(struct rb_node *curr_rb_root, char *id_ent)
     rb_delete_ent_from_rel(curr_rb_root->left, id_ent);
     rb_delete_ent_from_rel(curr_rb_root->right, id_ent);
     /* 
-     * Cerco l'entità nell'albero rb_dest di ogni relazione,
-     * se la trovo la elimino ed elimino anche l'albero rb_orig associato.
+     * Searches for entity in rb_dest of every relation,
+     * on hit, entity and nested rb_orig are deleted.
      */
     node_tmp = rb_search(curr_rb_root->nested, id_ent);
     if (node_tmp != t_nil) {
@@ -410,10 +417,15 @@ void rb_delete_ent_from_rel(struct rb_node *curr_rb_root, char *id_ent)
         node_tmp = rb_delete(&curr_rb_root->nested, node_tmp);
         free(node_tmp);
     }
-    /* Cerco l'entità nell'albero rb_orig di ogni rb_dest */
     rb_delete_ent_from_rel_nested(curr_rb_root->nested, id_ent);
 }
 
+/*
+ * Deletes an entity in rb_orig of every rb_dest (relation) nodes,
+ * 
+ * @param   curr_rb_root    node of the rb_dest tree to be searched
+ * @param   id_ent     		name of the entity to be deleted
+ */
 void rb_delete_ent_from_rel_nested(struct rb_node *curr_rb_root, char *id_ent)
 {
     struct rb_node *node_tmp;
@@ -421,7 +433,9 @@ void rb_delete_ent_from_rel_nested(struct rb_node *curr_rb_root, char *id_ent)
     if (curr_rb_root == t_nil)
         return;
     rb_delete_ent_from_rel_nested(curr_rb_root->left, id_ent);
-    /* Cerco l'entità nell'albero rb_orig, se la trovo la elimino */
+    /* Searches for entity in rb_dest of every relation,
+     * on hit, the entity is deleted.
+     */
     node_tmp = rb_search(curr_rb_root->nested, id_ent);
     if (node_tmp != t_nil) {
         free(node_tmp->key);
@@ -482,6 +496,13 @@ void print_report_nested(struct rb_node *rb_root)
     print_report_nested(rb_root->right);
 }
 
+/* 
+ * Prints the given number via fputc() method.
+ * This results in a faster printing method than
+ * the common printf().
+ * 
+ * @param   num     number to be printed
+ */
 void fputui(unsigned int num)
 {
     if (num >= 10)
@@ -489,6 +510,12 @@ void fputui(unsigned int num)
     fputc('0' + num % 10, stdout);
 }
 
+/* 
+ * Reads input lines from stdin.
+ * A single whitespace ' ' is used as string separator.
+ * This allows to save string sizes (for a later dynamic memory allocation)
+ * without calling strlen().
+ */
 int readline()
 {
     int ch, i = 0, j = 0;
@@ -508,9 +535,9 @@ int readline()
 }
 
 /*
- * @return:
- * 0 nessun inserimento, key già presente
- * 1 nuovo inserimento
+ * Inserts a new node into the given RBT.
+ * @return 	int		0 no entry, key already existing
+ * 					1 new entry
  */
 int rb_insert(struct rb_node **rb_root, struct rb_node *new)
 {
@@ -543,6 +570,12 @@ int rb_insert(struct rb_node **rb_root, struct rb_node *new)
     return 1;
 }
 
+
+/*
+ * Fixes the tree so that RBT properties are preserved.
+ * @param 	rb_root
+ * @param 	z
+ */
 void rb_insert_fixup(struct rb_node **rb_root, struct rb_node *z)
 {
     struct rb_node *x, *y;
@@ -591,6 +624,12 @@ void rb_insert_fixup(struct rb_node **rb_root, struct rb_node *z)
     }
 }
 
+/*
+ * Deletes a node from the given RBT.
+ * @param 	rb_root
+ * @param 	node
+ * @return  rb_node		the deleted node
+ */
 struct rb_node *rb_delete(struct rb_node **rb_root, struct rb_node *node)
 {
     struct rb_node *x, *y;
@@ -622,6 +661,11 @@ struct rb_node *rb_delete(struct rb_node **rb_root, struct rb_node *node)
     return y;
 }
 
+/*
+ * Fixes the tree so that RBT properties are preserved.
+ * @param 	rb_root
+ * @param 	x
+ */
 void rb_delete_fixup(struct rb_node **rb_root, struct rb_node *x)
 {
     struct rb_node *w;
@@ -678,6 +722,12 @@ void rb_delete_fixup(struct rb_node **rb_root, struct rb_node *x)
     }
 }
 
+/*
+ * Searches the key in the given RBT.
+ * @param 	rb_root
+ * @param 	node
+ * @return  rb_node		the found node (with the corresponding key)
+ */
 struct rb_node *rb_search(struct rb_node *rb_root, char *key)
 {
     while (rb_root != t_nil) {
