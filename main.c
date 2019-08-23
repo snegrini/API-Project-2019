@@ -123,6 +123,9 @@ int main(void)
             /* Checking that the entities of the relationship are monitored. */
             tmp_id_orig = rb_search(ent_rb_root, id_orig)->key;
             tmp_id_dest = rb_search(ent_rb_root, id_dest)->key;
+            
+            tmp_id_orig = rb_search(ent_rb_root, tokens[1].str)->key;
+            tmp_id_dest = rb_search(ent_rb_root, tokens[2].str)->key;
             if (tmp_id_orig != NULL && tmp_id_dest != NULL) {
                 addrel(tmp_id_orig, tmp_id_dest, id_rel);
             } else {
@@ -145,7 +148,7 @@ int main(void)
     } while (strncmp(command, "end", 4) != 0);
     
     rb_free(&ent_rb_root, 1);
-    rb_free(&rel_rb_root, 0);
+    rb_free(&rel_rb_root, 1);  
     rb_free(&report_rb_root, 0);
 
     return 0;
@@ -834,7 +837,7 @@ struct rb_node *rb_create_insert_node(struct rb_node **rb_root, char *key)
 
 /*
  * Frees the given tree and the nested trees. If clear_id_int flag is set
- * also strings (keys) are freed.
+ * also strings (keys) of the root tree are freed. Nested keys will not be freed.
  * @param   rb_root  
  * @param   clear_id_ent        set to 1 to free strings, 0 otherwise              
  */
@@ -846,8 +849,8 @@ void rb_free(struct rb_node **rb_root, int clear_id_ent)
     rb_free(&(*rb_root)->right, clear_id_ent);
 
     if ((*rb_root)->nested != t_nil)
-        rb_free(&(*rb_root)->nested, clear_id_ent);
-    if (clear_id_ent == 1)
+        rb_free(&(*rb_root)->nested, 0);
+    if (clear_id_ent == 1 && (*rb_root)->key != NULL)
         free((*rb_root)->key);
     free(*rb_root);
     *rb_root = t_nil;
