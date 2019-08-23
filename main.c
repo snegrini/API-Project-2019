@@ -83,6 +83,8 @@ int main(void)
     char *id_orig = NULL;
     char *id_dest = NULL;
     char *id_rel  = NULL;
+    char *tmp_id_orig = NULL;
+    char *tmp_id_dest = NULL;
 
     /* Initialize global vars */
     t_nil = &leaf;
@@ -119,14 +121,15 @@ int main(void)
             strcpy(id_rel, tokens[3].str);
 
             /* Checking that the entities of the relationship are monitored. */
-            if (rb_search(ent_rb_root, id_orig) != t_nil
-                && rb_search(ent_rb_root, id_dest) != t_nil) {
-                addrel(id_orig, id_dest, id_rel);
+            tmp_id_orig = rb_search(ent_rb_root, id_orig)->key;
+            tmp_id_dest = rb_search(ent_rb_root, id_dest)->key;
+            if (tmp_id_orig != NULL && tmp_id_dest != NULL) {
+                addrel(tmp_id_orig, tmp_id_dest, id_rel);
             } else {
-                free(id_orig);
-                free(id_dest);
                 free(id_rel);
             }
+            free(id_orig);
+            free(id_dest);
         } else if (strncmp(command, "delrel", 7) == 0) {
             id_orig = malloc(sizeof(char) * tokens[1].size);
             id_dest = malloc(sizeof(char) * tokens[2].size);
@@ -140,9 +143,9 @@ int main(void)
             report();
         }
     } while (strncmp(command, "end", 4) != 0);
-
+    
     rb_free(&ent_rb_root, 1);
-    rb_free(&rel_rb_root, 1);
+    rb_free(&rel_rb_root, 0);
     rb_free(&report_rb_root, 0);
 
     return 0;
@@ -170,16 +173,16 @@ void addent(char *id_ent)
 void delent(char *id_ent)
 {
     struct rb_node *node_tmp;
-
+     
+    if (rel_rb_root != t_nil) {
+        rb_delete_ent_from_rel(rel_rb_root, id_ent);
+        need_report_update = 1; /* Setting flag for report update */
+    }
     node_tmp = rb_search(ent_rb_root, id_ent);
     if (node_tmp != t_nil) {
         free(node_tmp->key);
         node_tmp = rb_delete(&ent_rb_root, node_tmp);
-        free(node_tmp);
-    }
-    if (rel_rb_root != t_nil) {
-        rb_delete_ent_from_rel(rel_rb_root, id_ent);
-        need_report_update = 1; /* Setting flag for report update */
+        free(node_tmp);        
     }
     free(id_ent);
 }
@@ -241,7 +244,6 @@ void addrel(char *id_orig, char *id_dest, char *id_rel)
              * - if it does not exist, it is added to the rb_orig tree.
              * - else, id_orig string is freed.
              */
-            free(id_dest); /* No more needed, rb_dest already exists. */
             if (rb_create_insert_node(&node_ent->nested, id_orig) != t_nil) {
                 ++node_ent->size;
                 if (need_report_update == 0) {
@@ -249,8 +251,6 @@ void addrel(char *id_orig, char *id_dest, char *id_rel)
                     node_rep = rb_search(report_rb_root, node_rel->key);
                     update_report(node_rep, node_ent->key, node_ent->size);
                 }
-            } else {
-                free(id_orig);
             }
         }
     }
@@ -275,7 +275,6 @@ void delrel(char *id_orig, char *id_dest, char *id_rel)
         if (node_dest != t_nil) {
             node_orig = rb_search(node_dest->nested, id_orig);
             if (node_orig != t_nil) {
-                free(node_orig->key);
                 node_orig = rb_delete(&node_dest->nested, node_orig);
                 node_dest->size = node_dest->size - 1;
                 free(node_orig);
@@ -283,7 +282,6 @@ void delrel(char *id_orig, char *id_dest, char *id_rel)
 
                 /* If rb_orig tree is empty, rb_dest node is deleted */
                 if (node_dest->nested == t_nil) {
-                    free(node_dest->key);
                     node_dest = rb_delete(&node_rel->nested, node_dest);
                     free(node_dest);
 
@@ -408,12 +406,11 @@ void rb_delete_ent_from_rel(struct rb_node *curr_rb_root, char *id_ent)
     rb_delete_ent_from_rel(curr_rb_root->right, id_ent);
     /*
      * Searches for entity in rb_dest of every relation,
-     * on hit, entity and nested rb_orig are deleted.
+     * on hit, nested rb_orig are deleted.
      */
     node_tmp = rb_search(curr_rb_root->nested, id_ent);
     if (node_tmp != t_nil) {
-        free(node_tmp->key);
-        rb_free(&node_tmp->nested, 1);
+        rb_free(&node_tmp->nested, 0);
         node_tmp = rb_delete(&curr_rb_root->nested, node_tmp);
         free(node_tmp);
     }
@@ -434,11 +431,10 @@ void rb_delete_ent_from_rel_nested(struct rb_node *curr_rb_root, char *id_ent)
         return;
     rb_delete_ent_from_rel_nested(curr_rb_root->left, id_ent);
     /* Searches for entity in rb_dest of every relation,
-     * on hit, the entity is deleted.
+     * on hit, the node is deleted.
      */
     node_tmp = rb_search(curr_rb_root->nested, id_ent);
     if (node_tmp != t_nil) {
-        free(node_tmp->key);
         node_tmp = rb_delete(&curr_rb_root->nested, node_tmp);
         curr_rb_root->size = curr_rb_root->size - 1;
         free(node_tmp);
