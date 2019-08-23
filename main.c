@@ -123,9 +123,6 @@ int main(void)
             /* Checking that the entities of the relationship are monitored. */
             tmp_id_orig = rb_search(ent_rb_root, id_orig)->key;
             tmp_id_dest = rb_search(ent_rb_root, id_dest)->key;
-            
-            tmp_id_orig = rb_search(ent_rb_root, tokens[1].str)->key;
-            tmp_id_dest = rb_search(ent_rb_root, tokens[2].str)->key;
             if (tmp_id_orig != NULL && tmp_id_dest != NULL) {
                 addrel(tmp_id_orig, tmp_id_dest, id_rel);
             } else {
