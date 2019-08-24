@@ -29,11 +29,13 @@ struct rb_node leaf;
 struct rb_node *t_nil;
 int first_print;
 int need_report_update;
-struct str_node tokens[4];
-struct rb_node *ent_rb_root; /* Store all entities before relations are created. */
-struct rb_node *rel_rb_root;
-struct rb_node *report_rb_root;
-
+struct rb_node *ent_rb_root; /* Store all entities. */
+struct rb_node *rel_rb_root; /* Store all relationships. */
+struct rb_node *report_rb_root; /* Store report. */
+struct str_node tokens[4]; /* Store input lines command and strings
+                            * 0: command, 1: id_orig, 2: id_dest, 3: id_rel.
+                            */
+                            
 /*
  * Default functions
  */
@@ -80,12 +82,10 @@ int main(void)
 {
     char command[8];
     char *id_ent  = NULL;
-    char *id_orig = NULL;
-    char *id_dest = NULL;
     char *id_rel  = NULL;
     char *tmp_id_orig = NULL;
     char *tmp_id_dest = NULL;
-
+    
     /* Initialize global vars */
     t_nil = &leaf;
     t_nil->color = BLACK; /* Set t_nil (leaf) color to BLACK */
@@ -104,45 +104,30 @@ int main(void)
         readline();
         memcpy(command, tokens[0].str, tokens[0].size);
 
-        if (strncmp(command, "addent", 7) == 0) {
+        if (strncmp(command, "addent", 7) == 7) {
             id_ent = malloc(sizeof(char) * tokens[1].size);
             strcpy(id_ent, tokens[1].str);
             addent(id_ent);
         } else if (strncmp(command, "delent", 7) == 0) {
-            id_ent = malloc(sizeof(char) * tokens[1].size);
-            strcpy(id_ent, tokens[1].str);
-            delent(id_ent);
+            delent(tokens[1].str);
         } else if (strncmp(command, "addrel", 7) == 0) {
-            id_orig = malloc(sizeof(char) * tokens[1].size);
-            id_dest = malloc(sizeof(char) * tokens[2].size);
             id_rel = malloc(sizeof(char) * tokens[3].size);
-            strcpy(id_orig, tokens[1].str);
-            strcpy(id_dest, tokens[2].str);
             strcpy(id_rel, tokens[3].str);
 
             /* Checking that the entities of the relationship are monitored. */
-            tmp_id_orig = rb_search(ent_rb_root, id_orig)->key;
-            tmp_id_dest = rb_search(ent_rb_root, id_dest)->key;
+            tmp_id_orig = rb_search(ent_rb_root, tokens[1].str)->key;
+            tmp_id_dest = rb_search(ent_rb_root, tokens[2].str)->key;
             if (tmp_id_orig != NULL && tmp_id_dest != NULL) {
                 addrel(tmp_id_orig, tmp_id_dest, id_rel);
             } else {
                 free(id_rel);
             }
-            free(id_orig);
-            free(id_dest);
         } else if (strncmp(command, "delrel", 7) == 0) {
-            id_orig = malloc(sizeof(char) * tokens[1].size);
-            id_dest = malloc(sizeof(char) * tokens[2].size);
-            id_rel = malloc(sizeof(char) * tokens[3].size);
-            strcpy(id_orig, tokens[1].str);
-            strcpy(id_dest, tokens[2].str);
-            strcpy(id_rel, tokens[3].str);
-
-            delrel(id_orig, id_dest, id_rel);
+            delrel(tokens[1].str, tokens[2].str, tokens[3].str);
         } else if (strncmp(command, "report", 7) == 0) {
             report();
         }
-    } while (strncmp(command, "end", 4) != 0);
+    } while (strcmp(command, "end") != 0);
     
     rb_free(&ent_rb_root, 1);
     rb_free(&rel_rb_root, 1);  
@@ -184,7 +169,6 @@ void delent(char *id_ent)
         node_tmp = rb_delete(&ent_rb_root, node_tmp);
         free(node_tmp);        
     }
-    free(id_ent);
 }
 
 /*
@@ -295,9 +279,6 @@ void delrel(char *id_orig, char *id_dest, char *id_rel)
             }
         }
     }
-    free(id_orig);
-    free(id_dest);
-    free(id_rel);
 }
 
 /*
