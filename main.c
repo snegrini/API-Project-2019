@@ -80,7 +80,6 @@ void rb_free(struct rb_node **rb_root, int clear_id_ent);
 
 int main(void)
 {
-    char command[8];
     char *id_ent  = NULL;
     char *id_rel  = NULL;
     char *tmp_id_orig = NULL;
@@ -102,15 +101,14 @@ int main(void)
 
     do {
         readline();
-        memcpy(command, tokens[0].str, tokens[0].size);
 
-        if (strncmp(command, "addent", 7) == 0) {
+        if (strcmp(tokens[0].str, "addent") == 0) {
             id_ent = malloc(sizeof(char) * tokens[1].size);
             strcpy(id_ent, tokens[1].str);
             addent(id_ent);
-        } else if (strncmp(command, "delent", 7) == 0) {
+        } else if (strcmp(tokens[0].str, "delent") == 0) {
             delent(tokens[1].str);
-        } else if (strncmp(command, "addrel", 7) == 0) {
+        } else if (strcmp(tokens[0].str, "addrel") == 0) {
             id_rel = malloc(sizeof(char) * tokens[3].size);
             strcpy(id_rel, tokens[3].str);
 
@@ -122,13 +120,13 @@ int main(void)
             } else {
                 free(id_rel);
             }
-        } else if (strncmp(command, "delrel", 7) == 0) {
+        } else if (strcmp(tokens[0].str, "delrel") == 0) {
             delrel(tokens[1].str, tokens[2].str, tokens[3].str);
-        } else if (strncmp(command, "report", 7) == 0) {
+        } else if (strcmp(tokens[0].str, "report") == 0) {
             report();
         }
-    } while (strcmp(command, "end") != 0);
-    
+    } while (strcmp(tokens[0].str, "end") != 0);
+
     rb_free(&ent_rb_root, 1);
     rb_free(&rel_rb_root, 1);  
     rb_free(&report_rb_root, 0);
