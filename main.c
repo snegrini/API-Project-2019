@@ -104,7 +104,7 @@ int main(void)
         readline();
         memcpy(command, tokens[0].str, tokens[0].size);
 
-        if (strncmp(command, "addent", 7) == 7) {
+        if (strncmp(command, "addent", 7) == 0) {
             id_ent = malloc(sizeof(char) * tokens[1].size);
             strcpy(id_ent, tokens[1].str);
             addent(id_ent);
