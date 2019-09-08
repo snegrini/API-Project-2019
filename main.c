@@ -35,7 +35,7 @@ struct rb_node *report_rb_root; /* Store report. */
 struct str_node tokens[4]; /* Store input lines command and strings
                             * 0: command, 1: id_orig, 2: id_dest, 3: id_rel.
                             */
-                            
+
 /*
  * Default functions
  */
@@ -337,7 +337,6 @@ void build_report_nested(struct rb_node *node_rep, struct rb_node *node_dest)
     build_report_nested(node_rep, node_dest->right);
 
     if (node_dest->size != 0) {
-        /* Se ho un nuovo max_size, azzero l'albero */
         if (node_dest->size == node_rep->size) {
             rb_create_insert_node(&node_rep->nested, node_dest->key);
         } else if (node_dest->size > node_rep->size) {
@@ -693,7 +692,6 @@ void rb_delete_fixup(struct rb_node **rb_root, struct rb_node *x)
             w->left->color = BLACK;
             rotate_right(rb_root, x->parent);
         }
-
     }
 }
 
@@ -815,7 +813,7 @@ struct rb_node *rb_create_insert_node(struct rb_node **rb_root, char *key)
  * Frees the given tree and the nested trees. If clear_id_int flag is set
  * also strings (keys) of the root tree are freed. Nested keys will not be freed.
  * @param   rb_root  
- * @param   clear_id_ent        set to 1 to free strings, 0 otherwise              
+ * @param   clear_id_ent    set to 1 to free strings, 0 otherwise
  */
 void rb_free(struct rb_node **rb_root, int clear_id_ent)
 {
