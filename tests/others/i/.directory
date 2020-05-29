@@ -1,7 +1,0 @@
-[Dolphin]
-SortOrder=1
-SortRole=size
-Timestamp=2019,8,2,11,21,40
-Version=4
-ViewMode=1
-VisibleRoles=Details_text,Details_size,Details_modificationtime,Details_type,CustomizedDetails
